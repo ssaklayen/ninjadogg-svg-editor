@@ -15,7 +15,7 @@ export class ShapeFactory {
         shape.gradientFill = defaultGradient;
 
         shape.isStrokeEnabled = isDefaultStrokeEnabled;
-        shape.stroke = defaultShapeStroke;
+        shape.stroke = isDefaultStrokeEnabled ? defaultShapeStroke : 'transparent';
         shape.strokeWidth = defaultShapeStrokeWidth;
         shape.solidStroke = defaultShapeStroke;
 
@@ -60,7 +60,7 @@ export class ShapeFactory {
         const line = new fabric.Line([pointer.x, pointer.y, pointer.x, pointer.y]);
 
         line.isStrokeEnabled = state.isDefaultStrokeEnabled;
-        line.stroke = state.defaultShapeStroke;
+        line.stroke = state.isDefaultStrokeEnabled ? state.defaultShapeStroke : 'transparent';
         line.strokeWidth = state.defaultShapeStrokeWidth;
         line.solidStroke = state.defaultShapeStroke;
         line.id = uniqueId();
