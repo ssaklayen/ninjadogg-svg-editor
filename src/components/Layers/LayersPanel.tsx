@@ -1,3 +1,5 @@
+// FILE: src\components\Layers\LayersPanel.tsx
+
 // This component displays the list of layers in the project. It handles rendering
 // layer previews, managing layer properties (visibility, lock, opacity),
 // and layer interactions like renaming, reordering (drag-and-drop), and deletion.
@@ -59,6 +61,8 @@ const renderLayerPreview = async (
 ) => {
     if (!previewCanvas) return;
 
+    // Reset the canvas viewport and clear any previous content
+    previewCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
     previewCanvas.clear();
 
     const renderWithBackground = (backgroundColor: fabric.Pattern | string | null) => {
@@ -73,33 +77,30 @@ const renderLayerPreview = async (
             }));
 
             Promise.all(clonePromises).then(clonedObjects => {
-                if (clonedObjects.length === 0) {
+                const validClones = clonedObjects.filter(Boolean);
+                if (validClones.length === 0) {
                     previewCanvas.renderAll();
                     return;
                 }
 
-                const group = new fabric.Group(clonedObjects);
+                const group = new fabric.Group(validClones);
+
+                if (!group.width || group.width === 0 || !group.height || group.height === 0) {
+                    previewCanvas.renderAll(); // Render only the background
+                    return;
+                }
+
                 group.opacity = layer.opacity;
 
-                const bBox = group.getBoundingRect();
-                if (bBox.width === 0 || bBox.height === 0) {
-                    previewCanvas.renderAll();
-                    return;
-                }
-
-                const padding = 8;
-                const scaleX = (previewCanvas.getWidth() - padding) / bBox.width;
-                const scaleY = (previewCanvas.getHeight() - padding) / bBox.height;
+                const padding = 16;
+                const scaleX = (previewCanvas.getWidth() - padding) / group.width;
+                const scaleY = (previewCanvas.getHeight() - padding) / group.height;
                 const scale = Math.min(scaleX, scaleY);
 
-                group.scale(scale);
-                group.setPositionByOrigin(
-                    new fabric.Point(previewCanvas.getWidth() / 2, previewCanvas.getHeight() / 2),
-                    'center',
-                    'center'
-                );
-
                 previewCanvas.add(group);
+                group.scale(scale);
+                group.center();
+
                 previewCanvas.renderAll();
             });
         });
@@ -321,10 +322,10 @@ export const LayersPanel = ({ layers, activeLayerId, controller }: LayersPanelPr
                                 ${draggedIndex === index ? 'shadow-2xl scale-105' : 'opacity-100'}`}
                         >
                             <div
-                                draggable
+                                draggable={editingLayerId !== layer.id}
                                 onDragStart={(e) => handleDragStart(e, index)}
                                 onDragEnd={handleDragEnd}
-                                className="flex items-center gap-2 cursor-grab"
+                                className={`flex items-center gap-2 ${editingLayerId !== layer.id ? 'cursor-grab' : 'cursor-auto'}`}
                             >
                                 <button onClick={(e) => { e.stopPropagation(); setEditingLayerId(layer.id);}} className="text-text-muted hover:text-text-primary"><Edit2 size={14}/></button>
                                 {editingLayerId === layer.id ? (
