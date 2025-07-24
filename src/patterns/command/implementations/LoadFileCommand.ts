@@ -5,7 +5,6 @@ import { LoadImageCommand } from "./LoadImageCommand";
 import { LoadSVGCommand } from "./LoadSVGCommand";
 import { SetActiveToolCommand } from "./SetActiveToolCommand";
 import { UpdateCanvasStateCommand } from "./UpdateCanvasStateCommand";
-import { awaitBrowserNextFrame } from "../../../utils/awaitBrowserNextFrame";
 
 // PATTERN: Command - A facade command that delegates to other specific load commands.
 export class LoadFileCommand implements ICommand {
@@ -50,30 +49,34 @@ export class LoadFileCommand implements ICommand {
         const projectState = JSON.parse(jsonString);
         const { canvas, ...modelState } = projectState;
 
-        this.controller.model.setState({
-            ...modelState,
-            isModalOpen: false,
-            isSaveModalOpen: false,
-            isExportModalOpen: false,
-            isDirty: false
-        });
-
-        await awaitBrowserNextFrame();
-
         fabricCanvas.setWidth(modelState.canvasSize.width);
         fabricCanvas.setHeight(modelState.canvasSize.height);
         fabricCanvas.calcOffset();
 
         await new Promise<void>(resolve => {
             fabricCanvas.loadFromJSON(canvas, () => {
+                // First, update the model state. This triggers the React re-render.
+                // The LayersPanel useEffect will now see a canvas populated with objects.
+                this.controller.model.setState({
+                    ...modelState,
+                    isModalOpen: false,
+                    isSaveModalOpen: false,
+                    isExportModalOpen: false,
+                    isDirty: false
+                });
+
+                // Then, perform canvas-specific updates.
                 fabricCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
                 new SetActiveToolCommand(this.controller, 'select').execute();
-                fabricCanvas.renderAll();
+
                 const historyManager = (this.controller as any).historyManager;
                 historyManager.clear();
+
+                // UpdateCanvasStateCommand will sync layer properties (visibility, etc.)
                 this.controller.executeCommandWithoutHistory(UpdateCanvasStateCommand);
-                this.controller.saveStateToHistory();
+                this.controller.saveStateToHistory(); // Create a new history baseline
                 this.controller.model.setState({ isDirty: false });
+
                 resolve();
             });
         });
