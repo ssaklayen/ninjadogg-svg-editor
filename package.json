@@ -1,5 +1,6 @@
 {
   "name": "ninjadogg-svg-editor",
+  "homepage": "https://github.com/ssaklayen/ninjadogg-svg-editor.git",
   "version": "1.0.0",
   "private": true,
   "dependencies": {
@@ -14,13 +15,16 @@
     "@types/fabric": "^5.3.7",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
-    "tailwindcss": "^3.4.1",
     "autoprefixer": "^10.4.19",
-    "postcss": "^8.4.38"
+    "gh-pages": "^6.3.0",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.1"
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build"
+    "build": "react-scripts build",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
   },
   "eslintConfig": {
     "extends": [
