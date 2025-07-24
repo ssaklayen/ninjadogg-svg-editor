@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/ssaklayen/ninjadogg-svg-editor.git/static/css/main.87d37291.css",
+    "main.js": "/ssaklayen/ninjadogg-svg-editor.git/static/js/main.a9acec71.js",
+    "index.html": "/ssaklayen/ninjadogg-svg-editor.git/index.html",
+    "main.87d37291.css.map": "/ssaklayen/ninjadogg-svg-editor.git/static/css/main.87d37291.css.map",
+    "main.a9acec71.js.map": "/ssaklayen/ninjadogg-svg-editor.git/static/js/main.a9acec71.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.87d37291.css",
+    "static/js/main.a9acec71.js"
+  ]
+}
