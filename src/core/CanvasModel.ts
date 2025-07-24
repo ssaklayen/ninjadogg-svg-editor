@@ -1,3 +1,5 @@
+// FILE: src\core\CanvasModel.ts
+
 // The model (MVC) for the application, holding all state and notifying observers of changes.
 import { ICanvasState, IObserver, ILayer } from '../types/types';
 import { uniqueId } from '../utils/uniqueId';
@@ -19,7 +21,7 @@ export class CanvasModel {
             previewBackground: 'dark',
         };
 
-        const initialStamps = Array.from({ length: 10 }, (_, i) => `/stamps/stamp${i + 1}.svg`);
+        const initialStamps = Array.from({ length: 10 }, (_, i) => `${process.env.PUBLIC_URL}/stamps/stamp${i + 1}.svg`);
 
         this.initialState = {
             projectName: 'new-ninjadogg-project',
