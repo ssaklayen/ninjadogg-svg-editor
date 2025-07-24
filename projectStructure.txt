@@ -1,0 +1,168 @@
+﻿+-- .DS_Store
++-- .gitignore
++-- codebase.ts
++-- package.json
++-- package-lock.json
++-- postcss.config.js
++-- projectStructure.txt
++-- tailwind.config.js
++-- tsconfig.json
++-- updateCodebase.ps1
++-- .idea
+|   +-- .gitignore
+|   +-- modules.xml
+|   +-- ninjadogg-svg-editor.iml
+|   +-- vcs.xml
+|   \-- workspace.xml
++-- public
+|   +-- index.html
+|   \-- stamps
+|       +-- stamp1.svg
+|       +-- stamp10.svg
+|       +-- stamp2.svg
+|       +-- stamp3.svg
+|       +-- stamp4.svg
+|       +-- stamp5.svg
+|       +-- stamp6.svg
+|       +-- stamp7.svg
+|       +-- stamp8.svg
+|       \-- stamp9.svg
+\-- src
+    +-- App.tsx
+    +-- index.css
+    +-- index.tsx
+    +-- components
+    |   +-- Canvas
+    |   |   \-- Canvas.tsx
+    |   +-- ContextMenu
+    |   |   \-- ContextMenu.tsx
+    |   +-- Layers
+    |   |   +-- LayersPanel.tsx
+    |   |   \-- LayersSidebar.tsx
+    |   +-- Modal
+    |   |   +-- ExportModal.tsx
+    |   |   +-- LoadModal.tsx
+    |   |   +-- ModalBase.tsx
+    |   |   +-- NewCanvasModal.tsx
+    |   |   +-- SaveProjectModal.tsx
+    |   |   \-- UnsavedChangesModal.tsx
+    |   +-- Panels
+    |   |   +-- ColorPicker.tsx
+    |   |   +-- GradientPicker.tsx
+    |   |   \-- ToggleSection.tsx
+    |   +-- Properties
+    |   |   +-- CanvasPropertiesPanel.tsx
+    |   |   +-- DrawingPropertiesPanel.tsx
+    |   |   +-- FillPanel.tsx
+    |   |   +-- FontPropertiesPanel.tsx
+    |   |   +-- PropertiesContent.tsx
+    |   |   +-- PropertiesHeader.tsx
+    |   |   +-- PropertiesSlider.tsx
+    |   |   +-- SelectionPropertiesPanel.tsx
+    |   |   \-- StrokePanel.tsx
+    |   +-- shared
+    |   |   \-- Portal.tsx
+    |   \-- Toolbar
+    |       +-- DrawingToolButton.tsx
+    |       +-- Header.tsx
+    |       +-- ShapeToolButton.tsx
+    |       +-- Sidebar.tsx
+    |       +-- StampToolButton.tsx
+    |       \-- ToolButton.tsx
+    +-- core
+    |   +-- AppController.ts
+    |   \-- CanvasModel.ts
+    +-- hooks
+    |   +-- useColorPicker.ts
+    |   \-- useFlyout.ts
+    +-- patterns
+    |   +-- command
+    |   |   +-- ICommand.ts
+    |   |   \-- implementations
+    |   |       +-- AddCustomStampCommand.ts
+    |   |       +-- AddLayerCommand.ts
+    |   |       +-- ApplyFillCommand.ts
+    |   |       +-- ChangeLayerOpacityCommand.ts
+    |   |       +-- CloseModalsCommand.ts
+    |   |       +-- CloseUnsavedChangesModalCommand.ts
+    |   |       +-- CopyCommand.ts
+    |   |       +-- CreateCanvasCommand.ts
+    |   |       +-- CutCommand.ts
+    |   |       +-- DeleteLayerCommand.ts
+    |   |       +-- DeleteSelectedCommand.ts
+    |   |       +-- DiscardChangesAndProceedCommand.ts
+    |   |       +-- ExportCommand.ts
+    |   |       +-- index.ts
+    |   |       +-- InitializeObjectPropertiesCommand.ts
+    |   |       +-- LoadFileCommand.ts
+    |   |       +-- LoadImageCommand.ts
+    |   |       +-- LoadSVGCommand.ts
+    |   |       +-- ModifyObjectCommand.ts
+    |   |       +-- OpenExportModalCommand.ts
+    |   |       +-- OpenLoadModalCommand.ts
+    |   |       +-- OpenNewCanvasModalCommand.ts
+    |   |       +-- OpenSaveModalCommand.ts
+    |   |       +-- PasteCommand.ts
+    |   |       +-- RenameLayerCommand.ts
+    |   |       +-- RenameProjectCommand.ts
+    |   |       +-- ReorderLayersCommand.ts
+    |   |       +-- SaveProjectCommand.ts
+    |   |       +-- SaveSVGCommand.ts
+    |   |       +-- SetActiveLayerCommand.ts
+    |   |       +-- SetActiveStampCommand.ts
+    |   |       +-- SetActiveToolCommand.ts
+    |   |       +-- SetCanvasGradientCommand.ts
+    |   |       +-- SetCanvasSolidColorCommand.ts
+    |   |       +-- SetGradientFillCommand.ts
+    |   |       +-- SetGridColorCommand.ts
+    |   |       +-- SetSolidFillCommand.ts
+    |   |       +-- ShowContextMenuCommand.ts
+    |   |       +-- SwitchToSelectToolCommand.ts
+    |   |       +-- ToggleCanvasGradientCommand.ts
+    |   |       +-- ToggleDefaultFillCommand.ts
+    |   |       +-- ToggleDefaultGradientCommand.ts
+    |   |       +-- ToggleDefaultStrokeCommand.ts
+    |   |       +-- ToggleDefaultTextStrokeCommand.ts
+    |   |       +-- ToggleGradientFillCommand.ts
+    |   |       +-- ToggleGridCommand.ts
+    |   |       +-- ToggleLayerLockCommand.ts
+    |   |       +-- ToggleLayerPreviewBackgroundCommand.ts
+    |   |       +-- ToggleLayerVisibilityCommand.ts
+    |   |       +-- ToggleThemeCommand.ts
+    |   |       +-- ToggleTransparencyCommand.ts
+    |   |       +-- UpdateBrushPropertiesCommand.ts
+    |   |       +-- UpdateCanvasStateCommand.ts
+    |   |       +-- UpdateDrawingDefaultsCommand.ts
+    |   |       \-- ZoomCommand.ts
+    |   +-- factory
+    |   |   +-- index.ts
+    |   |   +-- IObjectFactory.ts
+    |   |   +-- ObjectFactory.ts
+    |   |   +-- ShapeFactory.ts
+    |   |   \-- TextFactory.ts
+    |   +-- memento
+    |   |   +-- CanvasMemento.ts
+    |   |   \-- HistoryManager.ts
+    |   \-- strategy
+    |       +-- ShapeTool.ts
+    |       +-- Tool.ts
+    |       \-- implementations
+    |           +-- EllipseTool.ts
+    |           +-- index.ts
+    |           +-- LineTool.ts
+    |           +-- PencilTool.ts
+    |           +-- PenTool.ts
+    |           +-- RectTool.ts
+    |           +-- SelectTool.ts
+    |           +-- StampTool.ts
+    |           +-- TextTool.ts
+    |           \-- TriangleTool.ts
+    +-- types
+    |   +-- fabric.d.ts
+    |   \-- types.ts
+    \-- utils
+        +-- awaitBrowserNextFrame.ts
+        +-- colorUtils.ts
+        +-- debounce.ts
+        +-- svgToPngDataUrl.ts
+        \-- uniqueId.ts

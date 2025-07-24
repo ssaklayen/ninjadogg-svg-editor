@@ -1,0 +1,124 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root[data-theme='dark'] {
+    --color-bg-primary: 23 27 38;
+    --color-bg-secondary: 30 35 50;
+    --color-bg-tertiary: 42 48 65;
+    --color-bg-canvas: 20 23 32;
+
+    --color-text-primary: 230 230 230;
+    --color-text-secondary: 160 160 180;
+    --color-text-muted: 110 115 130;
+
+    --color-accent-primary: 60 80 120;
+    --color-accent-primary-hover: 75 95 140;
+    --color-accent-secondary: 100 180 255;
+
+    --color-border-primary: 50 55 75;
+    --color-border-secondary: 65 70 90;
+
+    --color-status-danger: 220 53 69;
+    --color-status-danger-hover: 230 75 90;
+    --color-status-warning: 255 193 7;
+}
+
+:root[data-theme='light'] {
+    --color-bg-primary: 251 249 245;
+    --color-bg-secondary: 244 241 236;
+    --color-bg-tertiary: 232 228 221;
+    --color-bg-canvas: 227 223 216;
+
+    --color-text-primary: 60 56 54;
+    --color-text-secondary: 92 88 86;
+    --color-text-muted: 146 131 116;
+
+    --color-accent-primary: 214 204 186;
+    --color-accent-primary-hover: 195 183 165;
+    --color-accent-secondary: 69 133 136;
+
+    --color-border-primary: 227 223 216;
+    --color-border-secondary: 214 204 186;
+
+    --color-status-danger: 204 36 29;
+    --color-status-danger-hover: 157 0 6;
+    --color-status-warning: 215 153 33;
+}
+
+
+body {
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom styles for the color picker hue slider */
+.hue-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 10px;
+    border-radius: 5px;
+    background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+    outline: none;
+    cursor: pointer;
+}
+
+.hue-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid #a0aec0;
+    cursor: grab;
+}
+
+.hue-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid #a0aec0;
+    cursor: grab;
+}
+
+@media (max-width: 767px) {
+    #root {
+        display: none;
+    }
+    body::before {
+        content: "This application is not supported on mobile devices. Please use a tablet or desktop computer.";
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 2rem;
+        text-align: center;
+        height: 100vh;
+        font-size: 1.25rem;
+        color: #9ca3af;
+        background-color: #111827;
+    }
+}
+
+@media (min-width: 768px) and (orientation: portrait) {
+    #root {
+        display: none;
+    }
+    body::before {
+        content: "Please rotate your device to landscape mode to use this application.";
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 2rem;
+        text-align: center;
+        height: 100vh;
+        font-size: 1.25rem;
+        color: #9ca3af;
+        background-color: #111827;
+    }
+}
