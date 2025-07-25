@@ -1,8 +1,4 @@
-/**
- * Renders the modal dialog for creating a new canvas. It allows users to
- * specify dimensions, background color (solid or gradient), and transparency.
- */
-// src/components/Modal/NewCanvasModal.tsx
+// FILE: src\components\Modal\NewCanvasModal.tsx
 import React, { useState, useMemo } from 'react';
 import { AppController } from '../../core/AppController';
 import { CreateCanvasCommand } from '../../patterns/command/implementations';
@@ -11,11 +7,9 @@ import { GradientPicker } from '../Panels/GradientPicker';
 import { uniqueId } from '../../utils/uniqueId';
 import { Link, Unlink } from 'lucide-react';
 import { ModalBase } from './ModalBase';
+import { useColorPicker } from '../../hooks/useColorPicker';
+import { ColorPicker } from '../Panels/ColorPicker';
 
-/**
- * The modal component for creating a new canvas.
- * @param controller The main application controller.
- */
 export const NewCanvasModal = ({ controller }: { controller: AppController }) => {
     const [projectName, setProjectName] = useState('new-ninjadogg-project');
     const [width, setWidth] = useState(800);
@@ -24,6 +18,8 @@ export const NewCanvasModal = ({ controller }: { controller: AppController }) =>
     const [isGradient, setIsGradient] = useState(false);
     const [bgColor, setBgColor] = useState('#ffffff');
     const [isLinked, setIsLinked] = useState(true);
+
+    const { isOpen: isColorPickerOpen, openPicker, closePicker, pickerRef, triggerRef, position } = useColorPicker(() => {});
 
     const initialGradient = useMemo(() => ({
         type: 'linear',
@@ -51,13 +47,9 @@ export const NewCanvasModal = ({ controller }: { controller: AppController }) =>
         }
     };
 
-    /**
-     * Handles the form submission to create the new canvas.
-     */
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (width > 0 && height > 0) {
-            // PATTERN: Command - Dispatches the command to create a new canvas with the specified options.
             controller.executeCommand(CreateCanvasCommand, projectName, { width, height }, {
                 isTransparent,
                 isGradient,
@@ -111,7 +103,24 @@ export const NewCanvasModal = ({ controller }: { controller: AppController }) =>
                 <div className={`transition-opacity ${isTransparent ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                     <div className={`flex items-center justify-between transition-opacity ${isGradient ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                         <label htmlFor="bgColor" className="text-sm font-medium text-text-secondary">Solid Color</label>
-                        <input type="color" id="bgColor" name="bgColor" value={bgColor} onChange={e => setBgColor(e.target.value)} className="w-10 h-10 bg-transparent border-none cursor-pointer disabled:cursor-not-allowed" />
+                        <div className="relative">
+                            <button
+                                ref={triggerRef}
+                                type="button"
+                                onClick={openPicker}
+                                className="w-10 h-10 border border-border-secondary rounded"
+                                style={{ backgroundColor: bgColor }}
+                            />
+                            {isColorPickerOpen && (
+                                <ColorPicker
+                                    ref={pickerRef}
+                                    position={position}
+                                    initialColor={bgColor}
+                                    onChange={setBgColor}
+                                    onClose={closePicker}
+                                />
+                            )}
+                        </div>
                     </div>
 
                     <div className="flex justify-between items-center mt-4">

@@ -36,7 +36,7 @@ export const LayersSidebar = ({ controller, modelState, isExpanded, onToggle }: 
                     <div className="flex items-center justify-between gap-3 p-2 border-b border-border-primary">
                         <div className="flex items-center gap-3">
                             <div className="text-accent-secondary"><Layers size={18} /></div>
-                            <h2 className="text-md font-semibold text-text-primary">Layers</h2>
+                            <h2 className="text-md font-semibold text-text-primary">Poop Layers</h2>
                             <button
                                 // PATTERN: Command - Executes the AddLayerCommand.
                                 onClick={() => controller.executeCommand(AddLayerCommand)}

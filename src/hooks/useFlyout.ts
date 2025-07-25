@@ -45,7 +45,9 @@ export const useFlyout = (): UseFlyoutResult => {
             if (pressTimer.current) {
                 clearTimeout(pressTimer.current);
                 pressTimer.current = null;
-                if (!isOpen) {
+                if (isOpen) {
+                    setIsOpen(false);
+                } else {
                     onClick();
                 }
             }

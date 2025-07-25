@@ -1,9 +1,10 @@
-// A reusable UI component for creating and editing gradients (linear or radial).
-// It allows for adding, removing, and modifying color stops and their positions.
+// FILE: src\components\Panels\GradientPicker.tsx
 import React from 'react';
-import { IGradientOptions } from '../../types/types';
+import { IGradientOptions, IGradientColorStop } from '../../types/types';
 import { Trash2, Plus, ArrowRightLeft } from 'lucide-react';
 import { uniqueId } from '../../utils/uniqueId';
+import { useColorPicker } from '../../hooks/useColorPicker';
+import { ColorPicker } from './ColorPicker';
 
 interface GradientPickerProps {
     gradient: IGradientOptions | null;
@@ -11,14 +12,66 @@ interface GradientPickerProps {
     onCommit: (gradient: IGradientOptions) => void;
 }
 
-// The main component for the gradient editor panel.
-// @param gradient - The current gradient object to be edited.
-// @param onChange - Callback for live updates as the user interacts (e.g., dragging a slider).
-// @param onCommit - Callback for when the change is finalized (e.g., on mouse up or color change).
+interface ColorStopItemProps {
+    stop: IGradientColorStop;
+    index: number;
+    isRemovable: boolean;
+    onColorChange: (index: number, color: string) => void;
+    onOffsetChange: (index: number, offset: number) => void;
+    onSliderMouseUp: () => void;
+    onRemove: (index: number) => void;
+}
+
+const ColorStopItem = ({ stop, index, isRemovable, onColorChange, onOffsetChange, onSliderMouseUp, onRemove }: ColorStopItemProps) => {
+    const { isOpen, openPicker, closePicker, pickerRef, triggerRef, position } = useColorPicker(() => onSliderMouseUp());
+
+    return (
+        <div className="flex flex-col gap-2 bg-background-secondary/50 p-2 rounded-md">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <button
+                        ref={triggerRef}
+                        type="button"
+                        onClick={openPicker}
+                        className="w-6 h-6 p-0 border border-border-secondary rounded-md cursor-pointer"
+                        style={{ backgroundColor: stop.color }}
+                    />
+                    {isOpen && (
+                        <ColorPicker
+                            ref={pickerRef}
+                            position={position}
+                            initialColor={stop.color}
+                            onChange={(color) => onColorChange(index, color)}
+                            onClose={closePicker}
+                        />
+                    )}
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-xs text-text-muted w-8 text-center">{Math.round(stop.offset * 100)}%</span>
+                    {isRemovable && (
+                        <button onClick={() => onRemove(index)} className="p-1 text-text-muted hover:text-text-primary hover:bg-border-secondary rounded-md" title="Remove Color Stop">
+                            <Trash2 size={14} />
+                        </button>
+                    )}
+                </div>
+            </div>
+            <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={stop.offset}
+                onChange={e => onOffsetChange(index, parseFloat(e.target.value))}
+                onMouseUp={onSliderMouseUp}
+                className="w-full h-1.5 bg-border-secondary rounded-lg appearance-none cursor-pointer accent-accent-primary-hover"
+            />
+        </div>
+    );
+};
+
 export const GradientPicker = ({ gradient, onChange, onCommit }: GradientPickerProps) => {
     if (!gradient) return null;
 
-    // Helper to call both onChange and onCommit for a finalized change.
     const handleCommit = (newGradient: IGradientOptions) => {
         onChange(newGradient);
         onCommit(newGradient);
@@ -40,11 +93,9 @@ export const GradientPicker = ({ gradient, onChange, onCommit }: GradientPickerP
         const nextStopOffset = index < newStops.length - 1 ? newStops[index + 1].offset : 1;
         const clampedOffset = Math.max(prevStopOffset, Math.min(offset, nextStopOffset));
         newStops[index].offset = clampedOffset;
-        // Use `onChange` for live preview without adding to history.
         onChange({ ...gradient, colorStops: newStops });
     };
 
-    // Commits the changes after a slider is released, ensuring stops are sorted.
     const handleSliderMouseUp = () => {
         const newStops = [...gradient.colorStops];
         newStops.sort((a, b) => a.offset - b.offset);
@@ -63,7 +114,6 @@ export const GradientPicker = ({ gradient, onChange, onCommit }: GradientPickerP
         const newStops = gradient.colorStops.filter((_, i) => i !== index);
         handleCommit({ ...gradient, colorStops: newStops });
     };
-
 
     const handleReverseGradient = () => {
         if (!gradient) return;
@@ -120,36 +170,16 @@ export const GradientPicker = ({ gradient, onChange, onCommit }: GradientPickerP
 
             <div className="flex flex-col gap-3">
                 {gradient.colorStops.map((stop, index) => (
-                    <div key={stop.id} className="flex flex-col gap-2 bg-background-secondary/50 p-2 rounded-md">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="color"
-                                    value={stop.color}
-                                    onChange={(e) => handleColorChange(index, e.target.value)}
-                                    className="w-6 h-6 p-0 border-none bg-transparent cursor-pointer"
-                                />
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-text-muted w-8 text-center">{Math.round(stop.offset * 100)}%</span>
-                                {gradient.colorStops.length > 2 && (
-                                    <button onClick={() => removeColorStop(index)} className="p-1 text-text-muted hover:text-text-primary hover:bg-border-secondary rounded-md" title="Remove Color Stop">
-                                        <Trash2 size={14} />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                        <input
-                            type="range"
-                            min="0"
-                            max="1"
-                            step="0.01"
-                            value={stop.offset}
-                            onChange={e => handleOffsetChange(index, parseFloat(e.target.value))}
-                            onMouseUp={handleSliderMouseUp}
-                            className="w-full h-2 bg-border-secondary rounded-lg appearance-none cursor-pointer"
-                        />
-                    </div>
+                    <ColorStopItem
+                        key={stop.id}
+                        stop={stop}
+                        index={index}
+                        isRemovable={gradient.colorStops.length > 2}
+                        onColorChange={handleColorChange}
+                        onOffsetChange={handleOffsetChange}
+                        onSliderMouseUp={handleSliderMouseUp}
+                        onRemove={removeColorStop}
+                    />
                 ))}
             </div>
         </div>

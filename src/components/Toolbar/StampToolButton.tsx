@@ -1,4 +1,3 @@
-// A toolbar button with a flyout gallery for selecting and loading stamp images.
 import React, { useRef } from 'react';
 import { Stamp, ChevronDown, Upload } from 'lucide-react';
 import { AppController } from '../../core/AppController';
@@ -21,15 +20,19 @@ export const StampToolButton = ({ controller, modelState }: StampToolButtonProps
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
-            // PATTERN: Command - Executes a command to add a custom stamp from a user file.
             controller.executeCommandWithoutHistory(AddCustomStampCommand, file);
         }
         setIsOpen(false);
     };
 
     const handleShortClick = () => {
-        // PATTERN: Command - Executes a command to activate the stamp tool.
         controller.executeCommand(SetActiveToolCommand, 'stamp');
+    };
+
+    const handleStampSelect = (src: string) => {
+        controller.executeCommandWithoutHistory(SetActiveStampCommand, src);
+        controller.executeCommand(SetActiveToolCommand, 'stamp');
+        setIsOpen(false);
     };
 
     return (
@@ -49,7 +52,7 @@ export const StampToolButton = ({ controller, modelState }: StampToolButtonProps
                         {stampGallery.map(src => (
                             <button
                                 key={src}
-                                onClick={() => controller.executeCommandWithoutHistory(SetActiveStampCommand, src)}
+                                onClick={() => handleStampSelect(src)}
                                 className={`p-1.5 rounded-md flex justify-center items-center ${activeStampSrc === src ? 'bg-accent-primary' : 'bg-background-tertiary hover:bg-border-secondary'}`}
                                 title={`Stamp`}
                             >
