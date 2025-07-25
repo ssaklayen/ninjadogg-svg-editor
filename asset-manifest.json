@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "/ninjadogg-svg-editor/static/css/main.882f3469.css",
-    "main.js": "/ninjadogg-svg-editor/static/js/main.9f1fcf57.js",
+    "main.css": "/ninjadogg-svg-editor/static/css/main.cb5c6fcc.css",
+    "main.js": "/ninjadogg-svg-editor/static/js/main.a616f0c2.js",
     "index.html": "/ninjadogg-svg-editor/index.html",
-    "main.882f3469.css.map": "/ninjadogg-svg-editor/static/css/main.882f3469.css.map",
-    "main.9f1fcf57.js.map": "/ninjadogg-svg-editor/static/js/main.9f1fcf57.js.map"
+    "main.cb5c6fcc.css.map": "/ninjadogg-svg-editor/static/css/main.cb5c6fcc.css.map",
+    "main.a616f0c2.js.map": "/ninjadogg-svg-editor/static/js/main.a616f0c2.js.map"
   },
   "entrypoints": [
-    "static/css/main.882f3469.css",
-    "static/js/main.9f1fcf57.js"
+    "static/css/main.cb5c6fcc.css",
+    "static/js/main.a616f0c2.js"
   ]
 }
