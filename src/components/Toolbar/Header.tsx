@@ -1,5 +1,3 @@
-// Renders the main application header, containing file operations,
-// zoom, undo/redo, and other global controls.
 import React, { useState, useEffect, useRef } from 'react';
 import { FilePlus2, Save, Share2, FolderOpen, Redo, Undo, ZoomIn, ZoomOut, Grid as GridIcon, ChevronDown, Sun, Moon } from 'lucide-react';
 import { AppController } from '../../core/AppController';
@@ -29,7 +27,6 @@ const GridColorFlyout = ({ controller, onclose }: { controller: AppController, o
     }, [onclose, pickerRef]);
 
     const handleColorChange = (color: string) => {
-        // PATTERN: Command
         controller.executeCommandWithoutHistory(SetGridColorCommand, color);
     };
 
@@ -71,7 +68,6 @@ export const Header = ({ controller, modelState }: HeaderProps) => {
         }
     }, [isEditingName]);
 
-    // PATTERN: Command
     const handleLoadClick = () => {
         if (isDirty) {
             controller.model.setState({
@@ -95,7 +91,6 @@ export const Header = ({ controller, modelState }: HeaderProps) => {
     };
 
     const handleNameChange = (e: React.FocusEvent<HTMLInputElement> | React.KeyboardEvent<HTMLInputElement>) => {
-        // PATTERN: Command
         controller.executeCommand(RenameProjectCommand, e.currentTarget.value);
         setIsEditingName(false);
     };
@@ -107,7 +102,6 @@ export const Header = ({ controller, modelState }: HeaderProps) => {
 
     return (
         <header className="bg-background-primary shadow-md p-2 flex flex-col z-40">
-            {/* --- Top Row: Project Title --- */}
             <div className="flex justify-center items-center w-full pb-2 mb-2 border-b border-border-primary">
                 {isEditingName ? (
                     <input
@@ -126,10 +120,8 @@ export const Header = ({ controller, modelState }: HeaderProps) => {
                 )}
             </div>
 
-            {/* --- Bottom Row: Controls --- */}
             <div className="flex items-center justify-center w-full">
-                <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-                    {/* File Operations */}
+                <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1">
                         <button onClick={handleNewCanvas} className="p-2 rounded hover:bg-background-tertiary" title="New Canvas"><FilePlus2 size={20} /></button>
                         <button onClick={() => controller.executeCommandWithoutHistory(OpenSaveModalCommand)} className="p-2 rounded hover:bg-background-tertiary" title="Save Project"><Save size={20} /></button>
@@ -139,14 +131,13 @@ export const Header = ({ controller, modelState }: HeaderProps) => {
 
                     <div className="h-6 border-l border-border-primary"></div>
 
-                    {/* View & History Operations */}
                     <div className="flex items-center gap-3">
-                        <button onClick={() => controller.executeCommand(ZoomCommand, 1.2)} className="p-2 rounded hover:bg-background-tertiary" title="Zoom In"><ZoomIn size={18} /></button>
-                        <button onClick={() => controller.executeCommand(ZoomCommand, 0.8)} className="p-2 rounded hover:bg-background-tertiary" title="Zoom Out"><ZoomOut size={18} /></button>
+                        <button onClick={() => controller.executeCommandWithoutHistory(ZoomCommand, 1.2)} className="p-2 rounded hover:bg-background-tertiary" title="Zoom In"><ZoomIn size={18} /></button>
+                        <button onClick={() => controller.executeCommandWithoutHistory(ZoomCommand, 0.8)} className="p-2 rounded hover:bg-background-tertiary" title="Zoom Out"><ZoomOut size={18} /></button>
 
                         <div className="relative">
                             <div className={`flex items-center rounded-md ${isGridVisible ? 'bg-accent-primary' : 'bg-background-secondary hover:bg-background-tertiary'}`}>
-                                <button onClick={() => controller.executeCommand(ToggleGridCommand)} className="p-2 rounded-l-md" title="Toggle Grid">
+                                <button onClick={() => controller.executeCommandWithoutHistory(ToggleGridCommand)} className="p-2 rounded-l-md" title="Toggle Grid">
                                     <GridIcon size={18} />
                                 </button>
                                 <div className="w-px h-5 bg-border-secondary opacity-50"></div>
@@ -165,7 +156,6 @@ export const Header = ({ controller, modelState }: HeaderProps) => {
 
                     <div className="h-6 border-l border-border-primary"></div>
 
-                    {/* Theme Toggle */}
                     <button
                         onClick={() => controller.executeCommandWithoutHistory(ToggleThemeCommand)}
                         className="p-2 rounded-full hover:bg-background-tertiary"

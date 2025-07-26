@@ -1,4 +1,4 @@
-// A toolbar button with a flyout menu for selecting a drawing tool (Pencil, Pen).
+// FILE: src\components\Toolbar\DrawingToolButton.tsx
 import React from 'react';
 import { Pen, Pencil, ChevronDown } from 'lucide-react';
 import { AppController } from '../../core/AppController';
@@ -23,13 +23,12 @@ export const DrawingToolButton = ({ controller, activeTool, lastSelectedDrawingT
     const isDrawingToolActive = drawingTools.some(t => t.name === activeTool);
 
     const handleToolSelect = (toolName: string) => {
-        // PATTERN: Command - Executes a command to set the active tool.
-        controller.executeCommand(SetActiveToolCommand, toolName, 'drawing');
+        controller.executeCommandWithoutHistory(SetActiveToolCommand, toolName, 'drawing');
         setIsOpen(false);
     };
 
     const handleShortClick = () => {
-        controller.executeCommand(SetActiveToolCommand, displayedDrawingTool.name);
+        controller.executeCommandWithoutHistory(SetActiveToolCommand, displayedDrawingTool.name);
     };
 
     return (

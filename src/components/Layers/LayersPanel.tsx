@@ -1,8 +1,4 @@
 // FILE: src\components\Layers\LayersPanel.tsx
-
-// This component displays the list of layers in the project. It handles rendering
-// layer previews, managing layer properties (visibility, lock, opacity),
-// and layer interactions like renaming, reordering (drag-and-drop), and deletion.
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Eye, EyeOff, Trash2, Edit2, LockKeyhole, UnlockKeyhole } from 'lucide-react';
 import { ILayer, PreviewBackground } from '../../types/types';
@@ -14,10 +10,8 @@ import {
 } from '../../patterns/command/implementations';
 import { debounce } from '../../utils/debounce';
 
-// Cache for checkerboard patterns to avoid recreating them on every render.
 const patternCache: { [key: string]: fabric.Pattern } = {};
 
-// Creates and caches a checkerboard pattern for layer previews.
 const getCheckerboardPattern = (
     key: 'dark' | 'light',
     colors: { light: string, dark: string }
@@ -53,16 +47,13 @@ const getCheckerboardPattern = (
     });
 };
 
-// Renders a preview of a single layer's contents onto a small static canvas.
 const renderLayerPreview = async (
     layer: ILayer,
     previewCanvas: fabric.StaticCanvas,
-    layerObjects: fabric.Object[] // Receives pre-filtered objects for efficiency
+    layerObjects: fabric.Object[]
 ) => {
     if (!previewCanvas) return;
 
-    // Reset the canvas viewport and clear any previous content
-    previewCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
     previewCanvas.clear();
 
     const renderWithBackground = (backgroundColor: fabric.Pattern | string | null) => {
@@ -77,30 +68,33 @@ const renderLayerPreview = async (
             }));
 
             Promise.all(clonePromises).then(clonedObjects => {
-                const validClones = clonedObjects.filter(Boolean);
-                if (validClones.length === 0) {
+                if (clonedObjects.length === 0) {
                     previewCanvas.renderAll();
                     return;
                 }
 
-                const group = new fabric.Group(validClones);
+                const group = new fabric.Group(clonedObjects);
+                group.opacity = layer.opacity;
 
-                if (!group.width || group.width === 0 || !group.height || group.height === 0) {
-                    previewCanvas.renderAll(); // Render only the background
+                const bBox = group.getBoundingRect();
+                if (bBox.width === 0 || bBox.height === 0) {
+                    previewCanvas.renderAll();
                     return;
                 }
 
-                group.opacity = layer.opacity;
-
-                const padding = 16;
-                const scaleX = (previewCanvas.getWidth() - padding) / group.width;
-                const scaleY = (previewCanvas.getHeight() - padding) / group.height;
+                const padding = 8;
+                const scaleX = (previewCanvas.getWidth() - padding) / bBox.width;
+                const scaleY = (previewCanvas.getHeight() - padding) / bBox.height;
                 const scale = Math.min(scaleX, scaleY);
 
-                previewCanvas.add(group);
                 group.scale(scale);
-                group.center();
+                group.setPositionByOrigin(
+                    new fabric.Point(previewCanvas.getWidth() / 2, previewCanvas.getHeight() / 2),
+                    'center',
+                    'center'
+                );
 
+                previewCanvas.add(group);
                 previewCanvas.renderAll();
             });
         });
@@ -134,7 +128,6 @@ interface LayersPanelProps {
     controller: AppController;
 }
 
-// The main panel for displaying and managing layers.
 export const LayersPanel = ({ layers, activeLayerId, controller }: LayersPanelProps) => {
     const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -155,16 +148,13 @@ export const LayersPanel = ({ layers, activeLayerId, controller }: LayersPanelPr
         };
     }, []);
 
-    // Effect to manage rendering and updating layer previews efficiently.
     useEffect(() => {
         const mainCanvas = controller.fabricCanvas;
         if (!mainCanvas) return;
 
-        // A more targeted update function.
         const updatePreviews = (layerIdsToUpdate: string[]) => {
             if (layerIdsToUpdate.length === 0) return;
 
-            // Group all objects by layerId once to avoid repeated filtering.
             const objectsByLayer = mainCanvas.getObjects().reduce((acc, obj) => {
                 if (obj.layerId && !obj.isGridLine && !obj.isPreviewObject) {
                     (acc[obj.layerId] = acc[obj.layerId] || []).push(obj);
@@ -193,13 +183,11 @@ export const LayersPanel = ({ layers, activeLayerId, controller }: LayersPanelPr
 
         const debouncedUpdate = debounce(updatePreviews, 50);
 
-        // Initial render of all previews.
         const allLayerIds = layersRef.current.map(l => l.id);
         if (allLayerIds.length > 0) {
             updatePreviews(allLayerIds);
         }
 
-        // --- Smarter Event Handlers ---
         const handleModification = (e: fabric.IEvent) => {
             if (!e.target) return;
             const target = e.target;
@@ -316,16 +304,16 @@ export const LayersPanel = ({ layers, activeLayerId, controller }: LayersPanelPr
                             <div className="absolute -top-1 left-0 right-0 h-1.5 bg-accent-secondary z-10 rounded-full" />
                         )}
                         <div
-                            onClick={() => controller.executeCommand(SetActiveLayerCommand, layer.id)}
+                            onClick={() => controller.executeCommandWithoutHistory(SetActiveLayerCommand, layer.id)}
                             className={`p-2 rounded-md mb-1.5 flex flex-col gap-2 border-2 transition-all duration-150
                                 ${activeLayerId === layer.id ? 'border-accent-primary bg-background-tertiary' : 'border-transparent bg-background-secondary hover:bg-background-tertiary/70'}
                                 ${draggedIndex === index ? 'shadow-2xl scale-105' : 'opacity-100'}`}
                         >
                             <div
-                                draggable={editingLayerId !== layer.id}
+                                draggable
                                 onDragStart={(e) => handleDragStart(e, index)}
                                 onDragEnd={handleDragEnd}
-                                className={`flex items-center gap-2 ${editingLayerId !== layer.id ? 'cursor-grab' : 'cursor-auto'}`}
+                                className="flex items-center gap-2 cursor-grab"
                             >
                                 <button onClick={(e) => { e.stopPropagation(); setEditingLayerId(layer.id);}} className="text-text-muted hover:text-text-primary"><Edit2 size={14}/></button>
                                 {editingLayerId === layer.id ? (

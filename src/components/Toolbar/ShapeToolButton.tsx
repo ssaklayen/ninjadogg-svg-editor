@@ -1,4 +1,3 @@
-// A toolbar button with a flyout menu for selecting a shape tool (Rectangle, Ellipse, etc.).
 import React from 'react';
 import { Circle, Triangle, RectangleHorizontal, Minus, ChevronDown } from 'lucide-react';
 import { AppController } from '../../core/AppController';
@@ -25,13 +24,12 @@ export const ShapeToolButton = ({ controller, activeTool, lastSelectedShapeTool 
     const isShapeToolActive = shapeTools.some(t => t.name === activeTool);
 
     const handleToolSelect = (toolName: string) => {
-        // PATTERN: Command - Executes a command to set the active tool.
-        controller.executeCommand(SetActiveToolCommand, toolName, 'shape');
+        controller.executeCommandWithoutHistory(SetActiveToolCommand, toolName, 'shape');
         setIsOpen(false);
     };
 
     const handleShortClick = () => {
-        controller.executeCommand(SetActiveToolCommand, displayedShape.name);
+        controller.executeCommandWithoutHistory(SetActiveToolCommand, displayedShape.name);
     };
 
     return (
