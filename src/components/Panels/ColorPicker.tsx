@@ -1,9 +1,3 @@
-// src/components/Panels/ColorPicker.tsx
-/**
- * A reusable pop-up component for color selection.
- * It renders outside of its parent's DOM tree using a React Portal to avoid clipping issues.
- * Provides a saturation/value map, a hue slider, and input fields for precise color control.
- */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { hexToRgb, hsvToRgb, rgbToHsv, rgbToHex, HSV, RGB } from '../../utils/colorUtils';
 import Portal from '../shared/Portal';
@@ -26,28 +20,48 @@ export const ColorPicker = React.forwardRef<HTMLDivElement, ColorPickerProps>(
         const [hsv, setHsv] = useState<HSV>({ h: 0, s: 100, v: 100 });
         const [rgb, setRgb] = useState<RGB>({ r: 255, g: 0, b: 0 });
         const [hex, setHex] = useState(initialColor);
+        const [isEditingHex, setIsEditingHex] = useState(false);
+        const [editingHexValue, setEditingHexValue] = useState(initialColor.substring(1).toUpperCase());
 
         const saturationRef = useRef<HTMLDivElement>(null);
+        const hexInputRef = useRef<HTMLInputElement>(null);
         const isDraggingSaturation = useRef(false);
 
-        useEffect(() => {
-            const initialRgb = hexToRgb(initialColor);
-            if (initialRgb) {
-                setRgb(initialRgb);
-                setHsv(rgbToHsv(initialRgb));
-                setHex(initialColor);
+        const updateColor = (newHex: string, source: 'picker' | 'hex' | 'rgb') => {
+            const newRgb = hexToRgb(newHex);
+            if (newRgb) {
+                const newHsv = rgbToHsv(newRgb);
+                setHex(newHex);
+                setRgb(newRgb);
+                setHsv(newHsv);
+                if (source !== 'hex') {
+                    setEditingHexValue(newHex.substring(1).toUpperCase());
+                }
+                onChange(newHex);
             }
+        };
+
+        useEffect(() => {
+            updateColor(initialColor, 'picker');
         }, [initialColor]);
 
         const handleHsvChange = useCallback((newHsv: Partial<HSV>) => {
             const updatedHsv = { ...hsv, ...newHsv };
-            setHsv(updatedHsv);
             const newRgb = hsvToRgb(updatedHsv);
-            setRgb(newRgb);
             const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
-            setHex(newHex);
-            onChange(newHex);
+            updateColor(newHex, 'picker');
         }, [hsv, onChange]);
+
+        const handleRgbChange = (channel: 'r' | 'g' | 'b', value: string) => {
+            let numValue = parseInt(value, 10);
+            if (isNaN(numValue)) numValue = 0;
+            if (numValue < 0) numValue = 0;
+            if (numValue > 255) numValue = 255;
+
+            const newRgb = { ...rgb, [channel]: numValue };
+            const newHex = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+            updateColor(newHex, 'rgb');
+        };
 
         const handleSaturationMouse = (e: React.MouseEvent<HTMLDivElement> | MouseEvent) => {
             if (!saturationRef.current) return;
@@ -79,6 +93,37 @@ export const ColorPicker = React.forwardRef<HTMLDivElement, ColorPickerProps>(
             };
         }, [handleSaturationMouse]);
 
+        useEffect(() => {
+            if (isEditingHex && hexInputRef.current) {
+                hexInputRef.current.focus();
+                hexInputRef.current.select();
+            }
+        }, [isEditingHex]);
+
+        const handleHexDoubleClick = () => {
+            setEditingHexValue(hex.substring(1).toUpperCase());
+            setIsEditingHex(true);
+        };
+
+        const handleHexBlur = () => {
+            setIsEditingHex(false);
+            setEditingHexValue(hex.substring(1).toUpperCase());
+        };
+
+        const handleHexValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            const sanitizedValue = e.target.value.replace(/[^0-9A-F]/gi, '').toUpperCase().slice(0, 6);
+            setEditingHexValue(sanitizedValue);
+        };
+
+        const handleHexKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+            if (e.key === 'Enter') {
+                const finalHex = editingHexValue.padStart(6, '0');
+                updateColor(`#${finalHex}`, 'hex');
+                hexInputRef.current?.blur();
+            } else if (e.key === 'Escape') {
+                hexInputRef.current?.blur();
+            }
+        }
 
         const hueBackgroundColor = useMemo(() => {
             const { r, g, b } = hsvToRgb({ h: hsv.h, s: 100, v: 100 });
@@ -86,21 +131,8 @@ export const ColorPicker = React.forwardRef<HTMLDivElement, ColorPickerProps>(
         }, [hsv.h]);
 
         const handleSwatchClick = (color: string) => {
-            onChange(color);
-            onClose();
+            updateColor(color, 'picker');
         };
-
-        const handleHexChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-            const newHex = e.target.value;
-            setHex(newHex);
-            const newRgb = hexToRgb(newHex);
-            if (newRgb) {
-                setRgb(newRgb);
-                const newHsv = rgbToHsv(newRgb);
-                setHsv(newHsv);
-                onChange(newHex);
-            }
-        }
 
         return (
             <Portal>
@@ -140,25 +172,46 @@ export const ColorPicker = React.forwardRef<HTMLDivElement, ColorPickerProps>(
                         />
                         <div className="flex items-center gap-2">
                             <div className="w-10 h-10 rounded-md border border-border-secondary" style={{ backgroundColor: hex }} />
-                            <div className="flex flex-col text-xs font-mono">
-                                <div className="flex items-center">
-                                    <label className="w-8 text-text-muted">HEX</label>
-                                    <input
-                                        type="text"
-                                        value={hex}
-                                        onChange={handleHexChange}
-                                        className="w-24 bg-background-tertiary text-text-primary p-1 rounded"
-                                    />
+                            <div className="flex flex-col gap-1.5 text-xs font-mono w-full">
+                                <div className="flex items-center justify-between" onDoubleClick={handleHexDoubleClick}>
+                                    <label className="text-text-muted select-none">HEX</label>
+                                    <div className="relative">
+                                        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-text-muted select-none">#</span>
+                                        <input
+                                            ref={hexInputRef}
+                                            type="text"
+                                            value={isEditingHex ? editingHexValue : hex.substring(1).toUpperCase()}
+                                            onBlur={handleHexBlur}
+                                            onChange={handleHexValueChange}
+                                            onKeyDown={handleHexKeyDown}
+                                            readOnly={!isEditingHex}
+                                            className={`w-24 bg-background-tertiary rounded p-1 text-text-primary text-center ${!isEditingHex ? 'select-none cursor-default' : ''}`}
+                                            maxLength={6}
+                                            tabIndex={!isEditingHex ? -1 : 0}
+                                        />
+                                    </div>
                                 </div>
-                                <div className="flex items-center mt-1">
-                                    <label className="w-8 text-text-muted">RGB</label>
-                                    <input disabled value={`${rgb.r}, ${rgb.g}, ${rgb.b}`} className="w-24 bg-background-tertiary text-text-muted p-1 rounded" />
+                                <div className="flex items-center justify-between">
+                                    <label className="text-text-muted select-none">RGB</label>
+                                    <div className="flex items-center gap-1">
+                                        {[ 'r', 'g', 'b' ].map((channel) => (
+                                            <input
+                                                key={channel}
+                                                type="number"
+                                                min="0"
+                                                max="255"
+                                                value={rgb[channel as keyof RGB]}
+                                                onChange={(e) => handleRgbChange(channel as keyof RGB, e.target.value)}
+                                                className="w-[3.2rem] bg-background-tertiary text-text-primary p-1 rounded text-center"
+                                            />
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-5 gap-1">
+                    <div className="grid grid-cols-5 gap-1 pt-2 border-t border-border-secondary">
                         {SWATCHES.map((swatch) => (
                             <button
                                 key={swatch}
