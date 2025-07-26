@@ -1,6 +1,4 @@
-// A reusable UI component for editing the fill properties (solid or gradient)
-// of an object or the canvas.
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { IGradientOptions } from '../../types/types';
 import { GradientPicker } from '../Panels/GradientPicker';
 import { useColorPicker } from '../../hooks/useColorPicker';
@@ -24,6 +22,49 @@ export const FillPanel = (props: FillPanelProps) => {
     const { isOpen, openPicker, closePicker, pickerRef, triggerRef, position } = useColorPicker(() => {
         if (onCommit) onCommit();
     });
+    const [isEditingHex, setIsEditingHex] = useState(false);
+    const [editingHexValue, setEditingHexValue] = useState(solidColor.substring(1).toUpperCase());
+    const hexInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (!isEditingHex) {
+            setEditingHexValue(solidColor.substring(1).toUpperCase());
+        }
+    }, [solidColor, isEditingHex]);
+
+    useEffect(() => {
+        if (isEditingHex && hexInputRef.current) {
+            hexInputRef.current.focus();
+            hexInputRef.current.select();
+        }
+    }, [isEditingHex]);
+
+    const handleHexDoubleClick = () => {
+        setEditingHexValue(solidColor.substring(1).toUpperCase());
+        setIsEditingHex(true);
+    };
+
+    const handleHexBlur = () => {
+        setIsEditingHex(false);
+    };
+
+    const handleHexChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const sanitizedValue = e.target.value.replace(/[^0-9A-F]/gi, '').toUpperCase().slice(0, 6);
+        setEditingHexValue(sanitizedValue);
+    };
+
+    const handleHexKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            const finalHex = editingHexValue.padStart(6, '0');
+            onSolidColorChange(`#${finalHex}`);
+            if (onCommit) {
+                onCommit();
+            }
+            hexInputRef.current?.blur();
+        } else if (e.key === 'Escape') {
+            hexInputRef.current?.blur();
+        }
+    }
 
     return (
         <div className="flex flex-col gap-3 border-b border-background-secondary pb-4">
@@ -60,7 +101,21 @@ export const FillPanel = (props: FillPanelProps) => {
                                         onClose={closePicker}
                                     />
                                 )}
-                                <input type="text" value={solidColor} onChange={e => onSolidColorChange(e.target.value)} onBlur={() => onCommit && onCommit()} className="w-20 bg-background-secondary rounded p-1 text-text-primary text-center text-xs" />
+                                <div className="relative" onDoubleClick={handleHexDoubleClick}>
+                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-text-muted select-none text-xs">#</span>
+                                    <input
+                                        ref={hexInputRef}
+                                        type="text"
+                                        value={isEditingHex ? editingHexValue : solidColor.substring(1).toUpperCase()}
+                                        onBlur={handleHexBlur}
+                                        onChange={handleHexChange}
+                                        onKeyDown={handleHexKeyDown}
+                                        readOnly={!isEditingHex}
+                                        className={`w-20 bg-background-secondary rounded p-1 text-text-primary text-center text-xs font-mono ${!isEditingHex ? 'select-none cursor-default' : ''}`}
+                                        maxLength={6}
+                                        tabIndex={!isEditingHex ? -1 : 0}
+                                    />
+                                </div>
                             </div>
                         </div>
                     ) : (
