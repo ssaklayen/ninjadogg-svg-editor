@@ -1,3 +1,4 @@
+// FILE: src/components/Toolbar/Header.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { FilePlus2, Save, Share2, FolderOpen, Redo, Undo, ZoomIn, ZoomOut, Grid as GridIcon, ChevronDown, Sun, Moon, BoxSelect } from 'lucide-react';
 import { AppController } from '../../core/AppController';
@@ -28,6 +29,7 @@ const GridColorFlyout = ({ controller, onclose }: { controller: AppController, o
 
     const handleColorChange = (color: string) => {
         controller.executeCommandWithoutHistory(SetGridColorCommand, color);
+        onclose();
     };
 
     return (
@@ -47,7 +49,7 @@ const GridColorFlyout = ({ controller, onclose }: { controller: AppController, o
                         ref={pickerRef}
                         position={position}
                         initialColor={gridColor}
-                        onChange={handleColorChange}
+                        onChange={(color) => controller.executeCommandWithoutHistory(SetGridColorCommand, color)}
                         onClose={closePicker}
                     />
                 )}
@@ -75,6 +77,7 @@ const BorderColorFlyout = ({ controller, onclose }: { controller: AppController,
 
     const handleColorChange = (color: string) => {
         controller.executeCommandWithoutHistory(SetBorderColorCommand, color);
+        onclose();
     };
 
     return (
@@ -94,7 +97,7 @@ const BorderColorFlyout = ({ controller, onclose }: { controller: AppController,
                         ref={pickerRef}
                         position={position}
                         initialColor={borderColor}
-                        onChange={handleColorChange}
+                        onChange={(color) => controller.executeCommandWithoutHistory(SetBorderColorCommand, color)}
                         onClose={closePicker}
                     />
                 )}
@@ -104,7 +107,7 @@ const BorderColorFlyout = ({ controller, onclose }: { controller: AppController,
 };
 
 export const Header = ({ controller, modelState }: HeaderProps) => {
-    const { canUndo, canRedo, isGridVisible, isDirty, theme, projectName, isBorderVisible } = modelState;
+    const { canUndo, canRedo, isGridVisible, gridColor, isDirty, theme, projectName, isBorderVisible, borderColor } = modelState;
     const [isGridFlyoutOpen, setGridFlyoutOpen] = useState(false);
     const [isBorderFlyoutOpen, setBorderFlyoutOpen] = useState(false);
     const [isEditingName, setIsEditingName] = useState(false);
@@ -115,6 +118,18 @@ export const Header = ({ controller, modelState }: HeaderProps) => {
             inputRef.current.select();
         }
     }, [isEditingName]);
+
+    const handleGridFlyoutToggle = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setGridFlyoutOpen(prev => !prev);
+        setBorderFlyoutOpen(false);
+    };
+
+    const handleBorderFlyoutToggle = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setBorderFlyoutOpen(prev => !prev);
+        setGridFlyoutOpen(false);
+    };
 
     const handleLoadClick = () => {
         if (isDirty) {
@@ -188,10 +203,10 @@ export const Header = ({ controller, modelState }: HeaderProps) => {
                         <div className="relative">
                             <div className={`flex items-center rounded-md ${isBorderVisible ? 'bg-accent-primary' : 'bg-background-secondary hover:bg-background-tertiary'}`}>
                                 <button onClick={() => controller.executeCommandWithoutHistory(ToggleBorderVisibilityCommand)} className="p-2 rounded-l-md" title="Toggle Canvas Border">
-                                    <BoxSelect size={18} />
+                                    <BoxSelect size={18} color={isBorderVisible ? borderColor : undefined} />
                                 </button>
                                 <div className="w-px h-5 bg-border-secondary opacity-50"></div>
-                                <button onClick={() => setBorderFlyoutOpen(!isBorderFlyoutOpen)} className="p-2 rounded-r-md" title="Border Options">
+                                <button onClick={handleBorderFlyoutToggle} className="p-2 rounded-r-md" title="Border Options">
                                     <ChevronDown size={16} />
                                 </button>
                             </div>
@@ -201,10 +216,10 @@ export const Header = ({ controller, modelState }: HeaderProps) => {
                         <div className="relative">
                             <div className={`flex items-center rounded-md ${isGridVisible ? 'bg-accent-primary' : 'bg-background-secondary hover:bg-background-tertiary'}`}>
                                 <button onClick={() => controller.executeCommandWithoutHistory(ToggleGridCommand)} className="p-2 rounded-l-md" title="Toggle Grid">
-                                    <GridIcon size={18} />
+                                    <GridIcon size={18} color={isGridVisible ? gridColor : undefined} />
                                 </button>
                                 <div className="w-px h-5 bg-border-secondary opacity-50"></div>
-                                <button onClick={() => setGridFlyoutOpen(!isGridFlyoutOpen)} className="p-2 rounded-r-md" title="Grid Options">
+                                <button onClick={handleGridFlyoutToggle} className="p-2 rounded-r-md" title="Grid Options">
                                     <ChevronDown size={16} />
                                 </button>
                             </div>
