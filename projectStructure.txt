@@ -133,6 +133,7 @@
     |   |       +-- SetActiveLayerCommand.ts
     |   |       +-- SetActiveStampCommand.ts
     |   |       +-- SetActiveToolCommand.ts
+    |   |       +-- SetBorderColorCommand.ts
     |   |       +-- SetCanvasGradientCommand.ts
     |   |       +-- SetCanvasSolidColorCommand.ts
     |   |       +-- SetGradientFillCommand.ts
@@ -140,6 +141,7 @@
     |   |       +-- SetSolidFillCommand.ts
     |   |       +-- ShowContextMenuCommand.ts
     |   |       +-- SwitchToSelectToolCommand.ts
+    |   |       +-- ToggleBorderVisibilityCommand.ts
     |   |       +-- ToggleCanvasGradientCommand.ts
     |   |       +-- ToggleDefaultFillCommand.ts
     |   |       +-- ToggleDefaultGradientCommand.ts

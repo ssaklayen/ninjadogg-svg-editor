@@ -33,10 +33,10 @@ export const LayersSidebar = ({ controller, modelState, isExpanded, onToggle }: 
 
             <div className={`transition-[width] duration-300 ease-in-out overflow-hidden ${isExpanded ? 'w-72' : 'w-8'}`}>
                 <div className={`w-72 h-full flex flex-col transition-opacity duration-200 ease-in-out ${isExpanded ? 'opacity-100' : 'opacity-0'}`}>
-                    <div className="flex items-center justify-between gap-3 p-2 border-b border-border-primary">
+                    <div draggable="false" className="flex items-center justify-between gap-3 p-2 border-b border-border-primary">
                         <div className="flex items-center gap-3">
-                            <div className="text-accent-secondary"><Layers size={18} /></div>
-                            <h2 className="text-md font-semibold text-text-primary">Layers</h2>
+                            <div draggable="false" className="text-accent-secondary"><Layers size={18} /></div>
+                            <h2 className="text-md font-semibold text-text-primary select-none">Layers</h2>
                             <button
                                 // PATTERN: Command - Executes the AddLayerCommand.
                                 onClick={() => controller.executeCommand(AddLayerCommand)}

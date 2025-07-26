@@ -46,8 +46,8 @@ export const UnsavedChangesModal = ({ controller }: { controller: AppController 
                     <AlertTriangle size={32} />
                 </div>
                 <div className="flex-1">
-                    <h2 className="text-xl font-bold mb-2">Unsaved Changes</h2>
-                    <p className="text-text-secondary mb-6">You have unsaved changes. Do you want to save your project before proceeding?</p>
+                    <h2 className="text-xl font-bold mb-2 select-none">Unsaved Changes</h2>
+                    <p className="text-text-secondary mb-6 select-none">You have unsaved changes. Do you want to save your project before proceeding?</p>
                 </div>
             </div>
 

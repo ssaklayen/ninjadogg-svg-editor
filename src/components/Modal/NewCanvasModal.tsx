@@ -1,4 +1,4 @@
-// FILE: src\components\Modal\NewCanvasModal.tsx
+// FILE: src/components/Modal/NewCanvasModal.tsx
 import React, { useState, useMemo } from 'react';
 import { AppController } from '../../core/AppController';
 import { CreateCanvasCommand } from '../../patterns/command/implementations';
@@ -68,10 +68,10 @@ export const NewCanvasModal = ({ controller }: { controller: AppController }) =>
 
     return (
         <ModalBase widthClass="max-w-md">
-            <h2 className="text-2xl font-bold mb-6 text-accent-secondary">Create New Canvas</h2>
+            <h2 className="text-2xl font-bold mb-6 text-accent-secondary select-none">Create New Canvas</h2>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                 <div>
-                    <label htmlFor="projectName" className="block text-sm font-medium text-text-secondary mb-2">Project Name</label>
+                    <label htmlFor="projectName" className="block text-sm font-medium text-text-secondary mb-2 select-none">Project Name</label>
                     <input
                         type="text"
                         id="projectName"
@@ -83,26 +83,26 @@ export const NewCanvasModal = ({ controller }: { controller: AppController }) =>
                 </div>
                 <div className="flex items-center gap-4">
                     <div className="flex-1">
-                        <label htmlFor="width" className="block text-sm font-medium text-text-secondary mb-2">Width (px)</label>
+                        <label htmlFor="width" className="block text-sm font-medium text-text-secondary mb-2 select-none">Width (px)</label>
                         <input type="number" id="width" name="width" value={width} onChange={e => handleWidthChange(parseInt(e.target.value, 10) || 0)} className="w-full bg-background-tertiary border border-border-secondary rounded-md px-3 py-2 text-text-primary" />
                     </div>
                     <button type="button" onClick={() => setIsLinked(!isLinked)} className="self-end p-2 mb-1 bg-background-tertiary hover:bg-accent-primary rounded-md" title={isLinked ? "Unlink Aspect Ratio" : "Link Aspect Ratio"}>
                         {isLinked ? <Link size={20} /> : <Unlink size={20} />}
                     </button>
                     <div className="flex-1">
-                        <label htmlFor="height" className="block text-sm font-medium text-text-secondary mb-2">Height (px)</label>
+                        <label htmlFor="height" className="block text-sm font-medium text-text-secondary mb-2 select-none">Height (px)</label>
                         <input type="number" id="height" name="height" value={height} onChange={e => handleHeightChange(parseInt(e.target.value, 10) || 0)} className="w-full bg-background-tertiary border border-border-secondary rounded-md px-3 py-2 text-text-primary" />
                     </div>
                 </div>
 
                 <div className="flex items-center gap-2">
                     <input type="checkbox" id="transparentBg" name="transparentBg" checked={isTransparent} onChange={(e) => { setIsTransparent(e.target.checked); if (e.target.checked) setIsGradient(false); }} className="h-4 w-4 rounded border-border-secondary bg-background-tertiary text-accent-primary focus:ring-accent-primary-hover" disabled={isGradient} />
-                    <label htmlFor="transparentBg" className="block text-sm font-medium text-text-secondary">Transparent Background</label>
+                    <label htmlFor="transparentBg" className="block text-sm font-medium text-text-secondary select-none">Transparent Background</label>
                 </div>
 
                 <div className={`transition-opacity ${isTransparent ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                     <div className={`flex items-center justify-between transition-opacity ${isGradient ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
-                        <label htmlFor="bgColor" className="text-sm font-medium text-text-secondary">Solid Color</label>
+                        <label htmlFor="bgColor" className="text-sm font-medium text-text-secondary select-none">Solid Color</label>
                         <div className="relative">
                             <button
                                 ref={triggerRef}
@@ -124,7 +124,7 @@ export const NewCanvasModal = ({ controller }: { controller: AppController }) =>
                     </div>
 
                     <div className="flex justify-between items-center mt-4">
-                        <label className="text-sm font-medium text-text-secondary">Gradient</label>
+                        <label className="text-sm font-medium text-text-secondary select-none">Gradient</label>
                         <button type="button" onClick={() => handleGradientToggle(!isGradient)} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-200 ease-in-out focus:outline-none ${isGradient ? 'bg-accent-primary' : 'bg-border-secondary'}`}>
                             <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform duration-200 ease-in-out ${isGradient ? 'translate-x-6' : 'translate-x-1'}`} />
                         </button>

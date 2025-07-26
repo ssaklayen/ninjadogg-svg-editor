@@ -33,10 +33,10 @@ export const SaveProjectModal = ({ controller }: { controller: AppController }) 
 
     return (
         <ModalBase onClose={handleClose} widthClass="max-w-md">
-            <h2 className="text-2xl font-bold mb-6 text-accent-secondary">Save Project</h2>
+            <h2 className="text-2xl font-bold mb-6 text-accent-secondary select-none">Save Project</h2>
             <form onSubmit={handleSubmit}>
                 <div className="mb-6">
-                    <label htmlFor="filename" className="block text-sm font-medium text-text-secondary mb-2">Filename</label>
+                    <label htmlFor="filename" className="block text-sm font-medium text-text-secondary mb-2 select-none">Filename</label>
                     <input
                         type="text"
                         id="filename"
@@ -46,7 +46,7 @@ export const SaveProjectModal = ({ controller }: { controller: AppController }) 
                         className="w-full bg-background-tertiary border border-border-secondary rounded-md px-3 py-2 text-text-primary"
                         autoFocus
                     />
-                    <p className="text-xs text-text-muted mt-2">The `.json` extension will be added automatically.</p>
+                    <p className="text-xs text-text-muted mt-2 select-none">The `.json` extension will be added automatically.</p>
                 </div>
                 <div className="flex justify-end gap-4">
                     <button type="button" onClick={handleClose} className="bg-border-secondary hover:bg-background-tertiary text-text-primary font-bold py-2 px-4 rounded-md">

@@ -34,7 +34,7 @@ const GridColorFlyout = ({ controller, onclose }: { controller: AppController, o
 
     return (
         <div ref={flyoutRef} className="absolute top-full mt-2 right-0 bg-background-secondary border border-border-primary rounded-lg shadow-xl z-50 p-3 w-48">
-            <p className="text-xs text-text-muted mb-2 font-semibold">Grid Color</p>
+            <p className="text-xs text-text-muted mb-2 font-semibold select-none">Grid Color</p>
             <div className="grid grid-cols-4 gap-2 mb-3">
                 {presetColors.map(color => (
                     <button key={color} onClick={() => handleColorChange(color)} className="w-8 h-8 rounded border-2 border-transparent hover:border-accent-secondary" style={{ backgroundColor: color }} />
@@ -82,7 +82,7 @@ const BorderColorFlyout = ({ controller, onclose }: { controller: AppController,
 
     return (
         <div ref={flyoutRef} className="absolute top-full mt-2 right-0 bg-background-secondary border border-border-primary rounded-lg shadow-xl z-50 p-3 w-48">
-            <p className="text-xs text-text-muted mb-2 font-semibold">Border Color</p>
+            <p className="text-xs text-text-muted mb-2 font-semibold select-none">Border Color</p>
             <div className="grid grid-cols-4 gap-2 mb-3">
                 {presetColors.map(color => (
                     <button key={color} onClick={() => handleColorChange(color)} className="w-8 h-8 rounded border-2 border-transparent hover:border-accent-secondary" style={{ backgroundColor: color }} />
@@ -177,7 +177,7 @@ export const Header = ({ controller, modelState }: HeaderProps) => {
                         autoFocus
                     />
                 ) : (
-                    <h1 onDoubleClick={() => setIsEditingName(true)} className="text-lg font-bold text-accent-secondary p-0.5" title="Double-click to rename">
+                    <h1 onDoubleClick={() => setIsEditingName(true)} className="text-lg font-bold text-accent-secondary p-0.5 select-none" title="Double-click to rename">
                         {projectName}
                     </h1>
                 )}

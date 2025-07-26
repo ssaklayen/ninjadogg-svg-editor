@@ -27,10 +27,10 @@ export const ExportModal = ({ controller }: { controller: AppController }) => {
 
     return (
         <ModalBase onClose={handleClose}>
-            <h2 className="text-2xl font-bold mb-6 text-accent-secondary">Export Canvas</h2>
+            <h2 className="text-2xl font-bold mb-6 text-accent-secondary select-none">Export Canvas</h2>
 
             <div className="mb-6">
-                <label htmlFor="filename" className="block text-sm font-medium text-text-secondary mb-2">Filename</label>
+                <label htmlFor="filename" className="block text-sm font-medium text-text-secondary mb-2 select-none">Filename</label>
                 <input
                     type="text"
                     id="filename"
@@ -40,37 +40,37 @@ export const ExportModal = ({ controller }: { controller: AppController }) => {
                     className="w-full bg-background-tertiary border border-border-secondary rounded-md px-3 py-2 text-text-primary"
                     autoFocus
                 />
-                <p className="text-xs text-text-muted mt-2">The file extension will be added automatically.</p>
+                <p className="text-xs text-text-muted mt-2 select-none">The file extension will be added automatically.</p>
             </div>
 
-            <p className="text-text-muted mb-4">Choose a format to export your creation.</p>
+            <p className="text-text-muted mb-4 select-none">Choose a format to export your creation.</p>
             <div className="grid grid-cols-2 gap-4">
                 <button onClick={() => handleExport('svg')} className="flex items-center gap-4 p-4 bg-background-tertiary hover:bg-accent-primary rounded-md">
                     <FileType size={32} />
                     <div>
-                        <p className="font-bold text-left">SVG</p>
-                        <p className="text-xs text-text-muted text-left">Scalable Vector</p>
+                        <p className="font-bold text-left select-none">SVG</p>
+                        <p className="text-xs text-text-muted text-left select-none">Scalable Vector</p>
                     </div>
                 </button>
                 <button onClick={() => handleExport('png')} className="flex items-center gap-4 p-4 bg-background-tertiary hover:bg-accent-primary rounded-md">
                     <Image size={32} />
                     <div>
-                        <p className="font-bold text-left">PNG</p>
-                        <p className="text-xs text-text-muted text-left">Transparent Image</p>
+                        <p className="font-bold text-left select-none">PNG</p>
+                        <p className="text-xs text-text-muted text-left select-none">Transparent Image</p>
                     </div>
                 </button>
                 <button onClick={() => handleExport('gif')} className="flex items-center gap-4 p-4 bg-background-tertiary hover:bg-accent-primary rounded-md">
                     <Film size={32} />
                     <div>
-                        <p className="font-bold text-left">GIF</p>
-                        <p className="text-xs text-text-muted text-left">Image Sequence</p>
+                        <p className="font-bold text-left select-none">GIF</p>
+                        <p className="text-xs text-text-muted text-left select-none">Image Sequence</p>
                     </div>
                 </button>
                 <button onClick={() => handleExport('jpeg')} className="flex items-center gap-4 p-4 bg-background-tertiary hover:bg-accent-primary rounded-md">
                     <GitBranch size={32} />
                     <div>
-                        <p className="font-bold text-left">JPG</p>
-                        <p className="text-xs text-text-muted text-left">Compressed Image</p>
+                        <p className="font-bold text-left select-none">JPG</p>
+                        <p className="text-xs text-text-muted text-left select-none">Compressed Image</p>
                     </div>
                 </button>
             </div>

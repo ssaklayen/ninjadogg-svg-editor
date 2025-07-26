@@ -1,5 +1,5 @@
 // FILE: src/components/Layers/LayersPanel.tsx
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Eye, EyeOff, Trash2, Edit2, LockKeyhole, UnlockKeyhole } from 'lucide-react';
 import { ILayer, PreviewBackground } from '../../types/types';
 import { AppController } from '../../core/AppController';
@@ -8,6 +8,7 @@ import {
     ReorderLayersCommand, ToggleLayerVisibilityCommand,
     DeleteLayerCommand, ChangeLayerOpacityCommand, RenameLayerCommand, SetActiveLayerCommand, ToggleLayerLockCommand, ToggleLayerPreviewBackgroundCommand
 } from '../../patterns/command/implementations';
+import { debounce } from '../../utils/debounce';
 
 const patternCache: { [key: string]: fabric.Pattern } = {};
 
@@ -162,13 +163,15 @@ export const LayersPanel = ({ layers, activeLayerId, controller }: LayersPanelPr
             });
         };
 
+        const debouncedUpdateAllPreviews = debounce(updateAllPreviews, 50);
+
         updateAllPreviews();
 
-        mainCanvas.on('app:history:saved', updateAllPreviews);
+        mainCanvas.on('app:history:saved', debouncedUpdateAllPreviews);
 
         return () => {
             if (mainCanvas) {
-                mainCanvas.off('app:history:saved', updateAllPreviews);
+                mainCanvas.off('app:history:saved', debouncedUpdateAllPreviews);
             }
         };
     }, [controller.fabricCanvas, layers]);
@@ -285,7 +288,7 @@ export const LayersPanel = ({ layers, activeLayerId, controller }: LayersPanelPr
                                         autoFocus
                                     />
                                 ) : (
-                                    <div className="truncate text-sm font-semibold" title={layer.name}>
+                                    <div className="truncate text-sm font-semibold select-none" title={layer.name}>
                                         {layer.name}
                                     </div>
                                 )}
@@ -316,7 +319,7 @@ export const LayersPanel = ({ layers, activeLayerId, controller }: LayersPanelPr
                             </div>
 
                             <div className="flex items-center gap-2 text-xs" onMouseDown={(e) => e.stopPropagation()}>
-                                <span className="text-text-muted">Opacity</span>
+                                <span className="text-text-muted select-none">Opacity</span>
                                 <input
                                     className="w-full h-1.5 bg-border-secondary rounded-lg appearance-none cursor-pointer accent-accent-primary-hover"
                                     type="range"
@@ -326,7 +329,7 @@ export const LayersPanel = ({ layers, activeLayerId, controller }: LayersPanelPr
                                     onChange={(e) => controller.executeCommandWithoutHistory(ChangeLayerOpacityCommand, layer.id, parseFloat(e.target.value))}
                                     onMouseUp={() => controller.saveStateToHistory()}
                                 />
-                                <span className="w-7 text-right text-text-secondary font-mono text-xs">{Math.round(layer.opacity * 100)}</span>
+                                <span className="w-7 text-right text-text-secondary font-mono text-xs select-none">{Math.round(layer.opacity * 100)}</span>
                             </div>
                         </div>
                         {dropIndicator && dropIndicator.index === index && dropIndicator.position === 'bottom' && (

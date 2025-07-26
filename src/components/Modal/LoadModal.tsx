@@ -68,7 +68,7 @@ export const LoadModal = ({ controller }: { controller: AppController }) => {
 
     return (
         <ModalBase onClose={handleClose}>
-            <h2 className="text-2xl font-bold mb-6 text-accent-secondary">Load Project or Image</h2>
+            <h2 className="text-2xl font-bold mb-6 text-accent-secondary select-none">Load Project or Image</h2>
 
             <div
                 onDragEnter={handleDragEnter}
@@ -86,8 +86,8 @@ export const LoadModal = ({ controller }: { controller: AppController }) => {
                 />
                 <div className="flex flex-col items-center justify-center gap-4">
                     <UploadCloud size={48} className="text-text-muted" />
-                    <p className="text-text-muted">Drag & drop your file here</p>
-                    <p className="text-text-muted text-sm">or</p>
+                    <p className="text-text-muted select-none">Drag & drop your file here</p>
+                    <p className="text-text-muted text-sm select-none">or</p>
                     <button
                         onClick={() => fileInputRef.current?.click()}
                         className="bg-accent-primary hover:bg-accent-primary-hover text-text-primary font-bold py-2 px-6 rounded-md flex items-center gap-2"
@@ -99,7 +99,7 @@ export const LoadModal = ({ controller }: { controller: AppController }) => {
 
             {error && <p className="text-status-danger text-sm mt-4 text-center">{error}</p>}
 
-            <p className="text-xs text-text-muted mt-4 text-center">Supported files: JSON, SVG, PNG, JPG, GIF</p>
+            <p className="text-xs text-text-muted mt-4 text-center select-none">Supported files: JSON, SVG, PNG, JPG, GIF</p>
 
             <div className="mt-8 text-right">
                 <button onClick={handleClose} className="bg-border-secondary hover:bg-background-tertiary text-text-primary font-bold py-2 px-4 rounded-md">

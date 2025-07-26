@@ -23,7 +23,7 @@ export const FontPropertiesPanel = (props: FontPropertiesPanelProps) => {
     return (
         <div className="flex flex-col gap-3 border-b border-background-secondary pb-4">
             <div className="flex items-center justify-between">
-                <label className="font-semibold text-text-muted">Font</label>
+                <label className="font-semibold text-text-muted select-none">Font</label>
             </div>
             <div className="pl-1 flex flex-col gap-3">
                 <select
@@ -41,7 +41,7 @@ export const FontPropertiesPanel = (props: FontPropertiesPanelProps) => {
                     <option>Comic Sans MS</option>
                 </select>
                 <div className="flex items-center justify-between">
-                    <label className="text-text-secondary">Style</label>
+                    <label className="text-text-secondary select-none">Style</label>
                     <div className="flex items-center gap-1">
                         <input
                             type="number"

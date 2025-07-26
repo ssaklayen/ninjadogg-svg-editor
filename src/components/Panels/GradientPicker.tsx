@@ -1,4 +1,4 @@
-// FILE: src\components\Panels\GradientPicker.tsx
+// FILE: src/components/Panels/GradientPicker.tsx
 import React from 'react';
 import { IGradientOptions, IGradientColorStop } from '../../types/types';
 import { Trash2, Plus, ArrowRightLeft } from 'lucide-react';
@@ -47,7 +47,7 @@ const ColorStopItem = ({ stop, index, isRemovable, onColorChange, onOffsetChange
                     )}
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-xs text-text-muted w-8 text-center">{Math.round(stop.offset * 100)}%</span>
+                    <span className="text-xs text-text-muted w-8 text-center select-none">{Math.round(stop.offset * 100)}%</span>
                     {isRemovable && (
                         <button onClick={() => onRemove(index)} className="p-1 text-text-muted hover:text-text-primary hover:bg-border-secondary rounded-md" title="Remove Color Stop">
                             <Trash2 size={14} />

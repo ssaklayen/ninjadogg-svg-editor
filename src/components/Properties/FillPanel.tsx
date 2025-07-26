@@ -28,7 +28,7 @@ export const FillPanel = (props: FillPanelProps) => {
     return (
         <div className="flex flex-col gap-3 border-b border-background-secondary pb-4">
             <div className="flex items-center justify-between">
-                <label className="font-semibold text-text-muted">Fill</label>
+                <label className="font-semibold text-text-muted select-none">Fill</label>
                 <button
                     onClick={() => onFillToggle(!isFillEnabled)}
                     className={`relative inline-flex items-center h-6 rounded-full w-11 ${isFillEnabled ? 'bg-accent-primary' : 'bg-border-secondary'}`}>
@@ -43,7 +43,7 @@ export const FillPanel = (props: FillPanelProps) => {
                     </div>
                     {fillType === 'solid' ? (
                         <div className="flex items-center justify-between">
-                            <label className="text-text-secondary">Color</label>
+                            <label className="text-text-secondary select-none">Color</label>
                             <div className="flex items-center gap-2">
                                 <button
                                     ref={triggerRef}

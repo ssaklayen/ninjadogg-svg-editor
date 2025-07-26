@@ -81,7 +81,7 @@ export const DrawingPropertiesPanel = ({ controller, modelState }: DrawingProper
             ) : isStampTool ? (
                 <div className="flex flex-col gap-3 border-b border-background-secondary pb-4">
                     <div className="flex items-center justify-between">
-                        <label className="font-semibold text-text-muted">Brush Size</label>
+                        <label className="font-semibold text-text-muted select-none">Brush Size</label>
                         <input
                             type="number"
                             min="8"

@@ -23,7 +23,7 @@ export const StrokePanel = (props: StrokePanelProps) => {
     return (
         <div className="flex flex-col gap-3 border-b border-background-secondary pb-4">
             <div className="flex items-center justify-between">
-                <label className="font-semibold text-text-muted">Stroke</label>
+                <label className="font-semibold text-text-muted select-none">Stroke</label>
                 <button
                     onClick={() => onStrokeToggle(!isStrokeEnabled)}
                     className={`relative inline-flex items-center h-6 rounded-full w-11 ${isStrokeEnabled ? 'bg-accent-primary' : 'bg-border-secondary'}`}>
@@ -33,7 +33,7 @@ export const StrokePanel = (props: StrokePanelProps) => {
             {isStrokeEnabled && (
                 <div className="pl-1 flex flex-col gap-3">
                     <div className="flex items-center justify-between">
-                        <label className="text-text-secondary">Color</label>
+                        <label className="text-text-secondary select-none">Color</label>
                         <div className="flex items-center gap-2">
                             <button
                                 ref={triggerRef}
@@ -54,7 +54,7 @@ export const StrokePanel = (props: StrokePanelProps) => {
                         </div>
                     </div>
                     <div className="flex items-center justify-between">
-                        <label className="text-text-secondary">Width</label>
+                        <label className="text-text-secondary select-none">Width</label>
                         <input
                             type="number"
                             min="0"

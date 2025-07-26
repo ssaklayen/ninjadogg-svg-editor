@@ -4,6 +4,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+    button {
+        @apply select-none;
+    }
+}
+
 :root[data-theme='dark'] {
     --color-bg-primary: 23 27 38;
     --color-bg-secondary: 30 35 50;
