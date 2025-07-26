@@ -1,5 +1,5 @@
-// FILE: src\components\Layers\LayersPanel.tsx
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+// FILE: src/components/Layers/LayersPanel.tsx
+import React, { useState, useRef, useEffect } from 'react';
 import { Eye, EyeOff, Trash2, Edit2, LockKeyhole, UnlockKeyhole } from 'lucide-react';
 import { ILayer, PreviewBackground } from '../../types/types';
 import { AppController } from '../../core/AppController';
@@ -8,7 +8,6 @@ import {
     ReorderLayersCommand, ToggleLayerVisibilityCommand,
     DeleteLayerCommand, ChangeLayerOpacityCommand, RenameLayerCommand, SetActiveLayerCommand, ToggleLayerLockCommand, ToggleLayerPreviewBackgroundCommand
 } from '../../patterns/command/implementations';
-import { debounce } from '../../utils/debounce';
 
 const patternCache: { [key: string]: fabric.Pattern } = {};
 
@@ -36,9 +35,9 @@ const getCheckerboardPattern = (
         ctx.fillRect(0, 0, patternSize / 2, patternSize / 2);
         ctx.fillRect(patternSize / 2, patternSize / 2, patternSize / 2, patternSize / 2);
 
-        fabric.Image.fromURL(patternCanvas.toDataURL(), (img) => {
+        fabric.Image.fromURL(patternCanvas.toDataURL(), (img: any) => {
             const pattern = new fabric.Pattern({
-                source: img.getElement() as HTMLImageElement,
+                source: img._element,
                 repeat: 'repeat'
             });
             patternCache[key] = pattern;
@@ -50,55 +49,13 @@ const getCheckerboardPattern = (
 const renderLayerPreview = async (
     layer: ILayer,
     previewCanvas: fabric.StaticCanvas,
-    layerObjects: fabric.Object[]
+    layerObjects: fabric.Object[],
+    mainCanvas: fabric.Canvas,
 ) => {
-    if (!previewCanvas) return;
+    if (!previewCanvas || !mainCanvas) return;
 
     previewCanvas.clear();
-
-    const renderWithBackground = (backgroundColor: fabric.Pattern | string | null) => {
-        previewCanvas.setBackgroundColor(backgroundColor || '#4a5568', () => {
-            if (layerObjects.length === 0) {
-                previewCanvas.renderAll();
-                return;
-            }
-
-            const clonePromises = layerObjects.map(obj => new Promise<fabric.Object>(resolve => {
-                obj.clone((cloned: fabric.Object) => resolve(cloned));
-            }));
-
-            Promise.all(clonePromises).then(clonedObjects => {
-                if (clonedObjects.length === 0) {
-                    previewCanvas.renderAll();
-                    return;
-                }
-
-                const group = new fabric.Group(clonedObjects);
-                group.opacity = layer.opacity;
-
-                const bBox = group.getBoundingRect();
-                if (bBox.width === 0 || bBox.height === 0) {
-                    previewCanvas.renderAll();
-                    return;
-                }
-
-                const padding = 8;
-                const scaleX = (previewCanvas.getWidth() - padding) / bBox.width;
-                const scaleY = (previewCanvas.getHeight() - padding) / bBox.height;
-                const scale = Math.min(scaleX, scaleY);
-
-                group.scale(scale);
-                group.setPositionByOrigin(
-                    new fabric.Point(previewCanvas.getWidth() / 2, previewCanvas.getHeight() / 2),
-                    'center',
-                    'center'
-                );
-
-                previewCanvas.add(group);
-                previewCanvas.renderAll();
-            });
-        });
-    };
+    previewCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
 
     const backgroundType: PreviewBackground = layer.previewBackground || 'dark';
     let backgroundColor: fabric.Pattern | string | null = null;
@@ -119,7 +76,39 @@ const renderLayerPreview = async (
             break;
     }
 
-    renderWithBackground(backgroundColor);
+    previewCanvas.setBackgroundColor(backgroundColor || '#4a5568', () => {
+        if (layerObjects.length === 0) {
+            previewCanvas.renderAll();
+            return;
+        }
+
+        const clonePromises = layerObjects.map(obj => new Promise<fabric.Object>(resolve => {
+            obj.clone((cloned: fabric.Object) => {
+                cloned.set({ evented: false, selectable: false });
+                resolve(cloned);
+            });
+        }));
+
+        Promise.all(clonePromises).then(clonedObjects => {
+            const group = new fabric.Group(clonedObjects);
+            group.opacity = layer.opacity;
+
+            const padding = 8;
+            const scaleX = (previewCanvas.getWidth() - padding) / mainCanvas.getWidth();
+            const scaleY = (previewCanvas.getHeight() - padding) / mainCanvas.getHeight();
+            const scale = Math.min(scaleX, scaleY);
+
+            group.scale(scale);
+            group.setPositionByOrigin(
+                new fabric.Point(previewCanvas.getWidth() / 2, previewCanvas.getHeight() / 2),
+                'center',
+                'center'
+            );
+
+            previewCanvas.add(group);
+            previewCanvas.renderAll();
+        });
+    });
 };
 
 interface LayersPanelProps {
@@ -152,69 +141,34 @@ export const LayersPanel = ({ layers, activeLayerId, controller }: LayersPanelPr
         const mainCanvas = controller.fabricCanvas;
         if (!mainCanvas) return;
 
-        const updatePreviews = (layerIdsToUpdate: string[]) => {
-            if (layerIdsToUpdate.length === 0) return;
-
-            const objectsByLayer = mainCanvas.getObjects().reduce((acc, obj) => {
-                if (obj.layerId && !obj.isGridLine && !obj.isPreviewObject) {
-                    (acc[obj.layerId] = acc[obj.layerId] || []).push(obj);
-                }
-                return acc;
-            }, {} as { [key: string]: fabric.Object[] });
-
-            const uniqueLayerIds = Array.from(new Set(layerIdsToUpdate));
-
-            uniqueLayerIds.forEach(layerId => {
-                const layer = layersRef.current.find(l => l.id === layerId);
-                const index = layersRef.current.findIndex(l => l.id === layerId);
+        const updateAllPreviews = () => {
+            layersRef.current.forEach((layer, index) => {
                 const canvasEl = previewCanvasRefs.current[index];
-                const layerObjects = objectsByLayer[layerId] || [];
+                const layerObjects = mainCanvas.getObjects().filter(obj =>
+                    obj.layerId === layer.id && !obj.isGridLine && !obj.isPreviewObject
+                );
 
                 if (layer && canvasEl) {
                     let previewCanvas = fabricCanvasInstances.current.get(layer.id);
                     if (!previewCanvas) {
-                        previewCanvas = new fabric.StaticCanvas(canvasEl);
+                        previewCanvas = new fabric.StaticCanvas(canvasEl, {
+                            renderOnAddRemove: false,
+                            selection: false,
+                        });
                         fabricCanvasInstances.current.set(layer.id, previewCanvas);
                     }
-                    renderLayerPreview(layer, previewCanvas, layerObjects);
+                    renderLayerPreview(layer, previewCanvas, layerObjects, mainCanvas);
                 }
             });
         };
 
-        const debouncedUpdate = debounce(updatePreviews, 50);
+        updateAllPreviews();
 
-        const allLayerIds = layersRef.current.map(l => l.id);
-        if (allLayerIds.length > 0) {
-            updatePreviews(allLayerIds);
-        }
-
-        const handleModification = (e: fabric.IEvent) => {
-            if (!e.target) return;
-            const target = e.target;
-            const layerIds = new Set<string>();
-
-            if (target.type === 'activeSelection') {
-                (target as fabric.ActiveSelection).getObjects().forEach(obj => {
-                    if (obj.layerId) layerIds.add(obj.layerId);
-                });
-            } else {
-                if (target.layerId) layerIds.add(target.layerId);
-            }
-
-            if (layerIds.size > 0) {
-                debouncedUpdate(Array.from(layerIds));
-            }
-        };
-
-        mainCanvas.on('object:added', handleModification);
-        mainCanvas.on('object:modified', handleModification);
-        mainCanvas.on('object:removed', handleModification);
+        mainCanvas.on('app:history:saved', updateAllPreviews);
 
         return () => {
             if (mainCanvas) {
-                mainCanvas.off('object:added', handleModification);
-                mainCanvas.off('object:modified', handleModification);
-                mainCanvas.off('object:removed', handleModification);
+                mainCanvas.off('app:history:saved', updateAllPreviews);
             }
         };
     }, [controller.fabricCanvas, layers]);
@@ -310,12 +264,16 @@ export const LayersPanel = ({ layers, activeLayerId, controller }: LayersPanelPr
                                 ${draggedIndex === index ? 'shadow-2xl scale-105' : 'opacity-100'}`}
                         >
                             <div
-                                draggable
+                                draggable={editingLayerId !== layer.id}
                                 onDragStart={(e) => handleDragStart(e, index)}
                                 onDragEnd={handleDragEnd}
-                                className="flex items-center gap-2 cursor-grab"
+                                className={`flex items-center gap-2 ${editingLayerId !== layer.id ? 'cursor-grab' : ''}`}
                             >
-                                <button onClick={(e) => { e.stopPropagation(); setEditingLayerId(layer.id);}} className="text-text-muted hover:text-text-primary"><Edit2 size={14}/></button>
+                                <button onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setEditingLayerId(editingLayerId === layer.id ? null : layer.id);
+                                }} className="text-text-muted hover:text-text-primary"><Edit2 size={14}/></button>
                                 {editingLayerId === layer.id ? (
                                     <input
                                         type="text"
@@ -323,7 +281,7 @@ export const LayersPanel = ({ layers, activeLayerId, controller }: LayersPanelPr
                                         onBlur={(e) => handleRename(e, layer)}
                                         onKeyDown={(e) => handleKeyDown(e, layer)}
                                         onClick={(e) => e.stopPropagation()}
-                                        className="w-full bg-border-secondary text-text-primary p-1 rounded text-xs"
+                                        className="w-full bg-background-tertiary text-text-primary p-1 rounded text-xs focus:ring-1 focus:ring-accent-primary outline-none"
                                         autoFocus
                                     />
                                 ) : (

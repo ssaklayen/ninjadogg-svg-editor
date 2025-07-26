@@ -5,12 +5,14 @@ declare module 'fabric' {
     namespace fabric {
         interface IObjectOptions {
             isPreviewObject?: boolean;
+            isArtboard?: boolean;
         }
 
         interface Object {
             id?: string;
             layerId?: string;
             isGridLine?: boolean;
+            isArtboard?: boolean;
             isLayerBackground?: boolean; // New property for internal tracking
             isPreviewObject?: boolean;
             customPathData?: any;

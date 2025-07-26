@@ -1,3 +1,4 @@
+// FILE: src/patterns/command/implementations/UpdateCanvasStateCommand.ts
 // Command to perform a full canvas render and state synchronization.
 import { ICommand } from "../ICommand";
 import { AppController } from "../../../core/AppController";
@@ -20,31 +21,58 @@ export class UpdateCanvasStateCommand implements ICommand {
 
         canvas.renderOnAddRemove = false;
 
-        const { layers, isGridVisible, gridSize, gridColor, activeLayerId, isTransparent, canvasSolidColor, isCanvasGradientEnabled, canvasGradient, theme } = this.controller.model.getState();
+        const {
+            layers, isGridVisible, gridSize, gridColor, activeLayerId, theme,
+            isTransparent, canvasSolidColor, isCanvasGradientEnabled, canvasGradient,
+            isBorderVisible, borderColor, canvasSize
+        } = this.controller.model.getState();
 
-        if (isTransparent) {
-            this.setCheckerboardBackground(canvas, theme);
-        } else if (isCanvasGradientEnabled && canvasGradient) {
-            const gradOpts: any = { type: canvasGradient.type, colorStops: canvasGradient.colorStops };
-            if (canvasGradient.type === 'radial') {
-                gradOpts.coords = { x1: canvas.width! / 2, y1: canvas.height! / 2, x2: canvas.width! / 2, y2: canvas.height! / 2, r1: 0, r2: canvas.width! / 2 };
-            } else {
-                gradOpts.coords = { x1: 0, y1: 0, x2: canvas.width!, y2: 0 };
-            }
-            canvas.setBackgroundColor(new fabric.Gradient(gradOpts), () => canvas.renderAll());
-        } else {
-            canvas.setBackgroundColor(canvasSolidColor, () => canvas.renderAll());
+        this.setCheckerboardBackground(canvas, theme);
+
+        const oldArtboard = canvas.getObjects().find(o => o.isArtboard);
+        if (oldArtboard) {
+            canvas.remove(oldArtboard);
         }
 
-        const allObjects = canvas.getObjects();
-        const oldGridLines = allObjects.filter(o => o.isGridLine);
+        const artboardRect = new fabric.Rect({
+            left: 0, top: 0,
+            width: canvasSize.width,
+            height: canvasSize.height,
+            selectable: false, evented: false,
+            isArtboard: true,
+        });
+
+        if (!isTransparent) {
+            if (isCanvasGradientEnabled && canvasGradient) {
+                const gradOpts: any = { type: canvasGradient.type, colorStops: canvasGradient.colorStops };
+                if (canvasGradient.type === 'radial') {
+                    gradOpts.coords = { x1: canvasSize.width / 2, y1: canvasSize.height / 2, x2: canvasSize.width / 2, y2: canvasSize.height / 2, r1: 0, r2: canvasSize.width / 2 };
+                } else {
+                    gradOpts.coords = { x1: 0, y1: 0, x2: canvasSize.width, y2: 0 };
+                }
+                artboardRect.set('fill', new fabric.Gradient(gradOpts));
+            } else {
+                artboardRect.set('fill', canvasSolidColor);
+            }
+        } else {
+            artboardRect.set('fill', 'transparent');
+        }
+
+        if (isBorderVisible) {
+            artboardRect.set({ stroke: borderColor, strokeWidth: 1, strokeDashArray: [5, 5] });
+        } else {
+            artboardRect.set({ stroke: 'transparent' });
+        }
+        canvas.add(artboardRect);
+
+        const oldGridLines = canvas.getObjects().filter(o => o.isGridLine);
         canvas.remove(...oldGridLines);
 
         if (isGridVisible) {
             this.drawGrid(canvas, gridSize, gridColor);
         }
 
-        const allUserObjects = allObjects.filter(o => !o.isGridLine);
+        const allUserObjects = canvas.getObjects().filter(o => !o.isGridLine && !o.isArtboard);
         const isActiveToolSelect = this.controller.model.getState().activeTool === 'select';
 
         allUserObjects.forEach(obj => {
@@ -92,8 +120,9 @@ export class UpdateCanvasStateCommand implements ICommand {
             }
         });
 
+        const finalArtboardRect = canvas.getObjects().find(o => o.isArtboard);
         const gridLines = canvas.getObjects().filter(o => o.isGridLine);
-        const userObjects = canvas.getObjects().filter(o => !o.isGridLine);
+        const userObjects = canvas.getObjects().filter(o => !o.isGridLine && !o.isArtboard);
         const newStack: fabric.Object[] = [];
 
         layers.slice().reverse().forEach(layer => {
@@ -101,7 +130,7 @@ export class UpdateCanvasStateCommand implements ICommand {
             newStack.push(...layerObjs);
         });
 
-        canvas._objects = [...gridLines, ...newStack];
+        canvas._objects = [finalArtboardRect, ...gridLines, ...newStack].filter(Boolean) as fabric.Object[];
 
         canvas.renderOnAddRemove = true;
         canvas.renderAll();

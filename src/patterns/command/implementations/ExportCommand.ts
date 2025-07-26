@@ -1,3 +1,4 @@
+// FILE: src/patterns/command/implementations/ExportCommand.ts
 // Command to export the canvas content to a specified image format.
 import { ICommand } from "../ICommand";
 import { AppController } from "../../../core/AppController";
@@ -22,38 +23,67 @@ export class ExportCommand implements ICommand {
         const canvas = this.controller.fabricCanvas;
         if (!canvas) return;
 
-        const { isTransparent } = this.controller.model.getState();
-        const originalBackground = canvas.backgroundColor;
-        const originalTransform = canvas.viewportTransform;
+        const { canvasSize } = this.controller.model.getState();
         const extension = this.format === 'jpeg' ? 'jpg' : this.format;
         const finalFilename = this.filename.endsWith(`.${extension}`) ? this.filename : `${this.filename}.${extension}`;
         let dataUrl: string;
 
-        try {
-            canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+        const artboardRect = canvas.getObjects().find(o => o.isArtboard);
+        const originalStroke = artboardRect?.stroke;
+        const originalStrokeWidth = artboardRect?.strokeWidth;
+        const originalStrokeDashArray = artboardRect?.strokeDashArray;
+        const originalCanvasBg = canvas.backgroundColor;
+        const originalVpt = canvas.viewportTransform;
 
-            if (isTransparent) {
-                if (this.format === 'jpeg') {
-                    canvas.backgroundColor = '#ffffff';
-                } else {
-                    canvas.backgroundColor = '';
-                }
+        try {
+            if (artboardRect) {
+                artboardRect.set({ stroke: 'transparent', strokeWidth: 0, strokeDashArray: undefined });
             }
 
+            if (this.format === 'jpeg') {
+                canvas.backgroundColor = '#ffffff';
+            } else {
+                canvas.backgroundColor = '';
+            }
+
+            canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+            canvas.renderAll();
+
             if (this.format === 'svg') {
-                dataUrl = 'data:image/svg+xml;charset=utf-g,' + encodeURIComponent(canvas.toSVG());
+                dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(canvas.toSVG({
+                    width: canvasSize.width,
+                    height: canvasSize.height,
+                    viewBox: {
+                        x: 0,
+                        y: 0,
+                        width: canvasSize.width,
+                        height: canvasSize.height,
+                    }
+                }));
             } else {
                 dataUrl = canvas.toDataURL({
                     format: this.format,
                     quality: this.format === 'jpeg' ? 0.8 : 1,
+                    left: 0,
+                    top: 0,
+                    width: canvasSize.width,
+                    height: canvasSize.height,
                 });
             }
 
             this.triggerDownload(dataUrl, finalFilename);
 
         } finally {
-            if(originalTransform) canvas.setViewportTransform(originalTransform);
-            canvas.backgroundColor = originalBackground;
+            if(originalVpt) canvas.setViewportTransform(originalVpt);
+
+            if (artboardRect) {
+                artboardRect.set({
+                    stroke: originalStroke,
+                    strokeWidth: originalStrokeWidth,
+                    strokeDashArray: originalStrokeDashArray
+                });
+            }
+            canvas.backgroundColor = originalCanvasBg;
             canvas.renderAll();
         }
     }

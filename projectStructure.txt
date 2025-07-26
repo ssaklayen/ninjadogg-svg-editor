@@ -14,6 +14,28 @@
 |   +-- ninjadogg-svg-editor.iml
 |   +-- vcs.xml
 |   \-- workspace.xml
++-- build
+|   +-- asset-manifest.json
+|   +-- index.html
+|   +-- stamps
+|   |   +-- stamp1.svg
+|   |   +-- stamp10.svg
+|   |   +-- stamp2.svg
+|   |   +-- stamp3.svg
+|   |   +-- stamp4.svg
+|   |   +-- stamp5.svg
+|   |   +-- stamp6.svg
+|   |   +-- stamp7.svg
+|   |   +-- stamp8.svg
+|   |   \-- stamp9.svg
+|   \-- static
+|       +-- css
+|       |   +-- main.34ed053f.css
+|       |   \-- main.34ed053f.css.map
+|       \-- js
+|           +-- main.82203a88.js
+|           +-- main.82203a88.js.LICENSE.txt
+|           \-- main.82203a88.js.map
 +-- public
 |   +-- index.html
 |   \-- stamps

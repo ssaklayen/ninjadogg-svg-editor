@@ -1,5 +1,3 @@
-// FILE: src\core\CanvasModel.ts
-
 // The model (MVC) for the application, holding all state and notifying observers of changes.
 import { ICanvasState, IObserver, ILayer } from '../types/types';
 import { uniqueId } from '../utils/uniqueId';
@@ -40,6 +38,8 @@ export class CanvasModel {
             isGridVisible: false,
             gridSize: 20,
             gridColor: 'rgba(204, 204, 204, 0.5)',
+            isBorderVisible: true,
+            borderColor: 'rgba(255, 255, 255, 0.8)',
 
             isTransparent: true,
             canvasSolidColor: '#ffffff',

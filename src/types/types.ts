@@ -35,22 +35,22 @@ export type Theme = 'light' | 'dark';
  * @interface ILayer
  *
  * @property {string} id
- *   A unique identifier for the layer.
+ * A unique identifier for the layer.
  *
  * @property {string} name
- *   The display name of the layer.
+ * The display name of the layer.
  *
  * @property {boolean} isVisible
- *   Indicates whether the layer is visible or not.
+ * Indicates whether the layer is visible or not.
  *
  * @property {number} opacity
- *   The transparency level of the layer, typically ranging from 0 (completely transparent) to 1 (completely opaque).
+ * The transparency level of the layer, typically ranging from 0 (completely transparent) to 1 (completely opaque).
  *
  * @property {boolean} isLocked
- *   Determines whether the layer is locked and thereby not editable.
+ * Determines whether the layer is locked and thereby not editable.
  *
  * @property {PreviewBackground} [previewBackground]
- *   An optional property defining the layer's preview background settings.
+ * An optional property defining the layer's preview background settings.
  */
 export interface ILayer {
     id: string;
@@ -123,6 +123,8 @@ export interface ICanvasState {
     isGridVisible: boolean;
     gridSize: number;
     gridColor: string;
+    isBorderVisible: boolean;
+    borderColor: string;
 
     isDefaultFillEnabled: boolean;
     defaultSolidFill: string;
@@ -176,7 +178,7 @@ export interface ICanvasState {
  *
  * @interface
  * @property {Function} update - A method that gets called to notify the observer
- *                                 about changes in the observed subject's state.
+ * about changes in the observed subject's state.
  * @param {ICanvasState} state - The updated state object passed to the observer.
  */
 export interface IObserver { update: (state: ICanvasState) => void; }

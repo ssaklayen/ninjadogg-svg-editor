@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FilePlus2, Save, Share2, FolderOpen, Redo, Undo, ZoomIn, ZoomOut, Grid as GridIcon, ChevronDown, Sun, Moon } from 'lucide-react';
+import { FilePlus2, Save, Share2, FolderOpen, Redo, Undo, ZoomIn, ZoomOut, Grid as GridIcon, ChevronDown, Sun, Moon, BoxSelect } from 'lucide-react';
 import { AppController } from '../../core/AppController';
 import { ICanvasState } from '../../types/types';
 import {
     OpenNewCanvasModalCommand, OpenSaveModalCommand, OpenExportModalCommand,
-    OpenLoadModalCommand, ZoomCommand, ToggleGridCommand, SetGridColorCommand, ToggleThemeCommand, RenameProjectCommand
+    OpenLoadModalCommand, ZoomCommand, ToggleGridCommand, SetGridColorCommand, ToggleThemeCommand, RenameProjectCommand, ToggleBorderVisibilityCommand, SetBorderColorCommand
 } from '../../patterns/command/implementations';
 import { useColorPicker } from '../../hooks/useColorPicker';
 import { ColorPicker } from '../Panels/ColorPicker';
@@ -56,9 +56,57 @@ const GridColorFlyout = ({ controller, onclose }: { controller: AppController, o
     );
 };
 
+const BorderColorFlyout = ({ controller, onclose }: { controller: AppController, onclose: () => void }) => {
+    const flyoutRef = useRef<HTMLDivElement>(null);
+    const { borderColor } = controller.model.getState();
+    const { isOpen, openPicker, closePicker, pickerRef, triggerRef, position } = useColorPicker(onclose);
+
+    const presetColors = ['rgba(255, 255, 255, 0.8)', 'rgba(0, 0, 0, 0.8)', 'rgba(255, 100, 100, 0.8)', 'rgba(100, 100, 255, 0.8)'];
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (flyoutRef.current && !flyoutRef.current.contains(event.target as Node) && !pickerRef.current?.contains(event.target as Node)) {
+                onclose();
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [onclose, pickerRef]);
+
+    const handleColorChange = (color: string) => {
+        controller.executeCommandWithoutHistory(SetBorderColorCommand, color);
+    };
+
+    return (
+        <div ref={flyoutRef} className="absolute top-full mt-2 right-0 bg-background-secondary border border-border-primary rounded-lg shadow-xl z-50 p-3 w-48">
+            <p className="text-xs text-text-muted mb-2 font-semibold">Border Color</p>
+            <div className="grid grid-cols-4 gap-2 mb-3">
+                {presetColors.map(color => (
+                    <button key={color} onClick={() => handleColorChange(color)} className="w-8 h-8 rounded border-2 border-transparent hover:border-accent-secondary" style={{ backgroundColor: color }} />
+                ))}
+            </div>
+            <div>
+                <button ref={triggerRef} onClick={openPicker} className="w-full text-center text-xs bg-background-tertiary hover:bg-border-secondary py-1.5 rounded">
+                    Custom Color
+                </button>
+                {isOpen && (
+                    <ColorPicker
+                        ref={pickerRef}
+                        position={position}
+                        initialColor={borderColor}
+                        onChange={handleColorChange}
+                        onClose={closePicker}
+                    />
+                )}
+            </div>
+        </div>
+    );
+};
+
 export const Header = ({ controller, modelState }: HeaderProps) => {
-    const { canUndo, canRedo, isGridVisible, isDirty, theme, projectName } = modelState;
+    const { canUndo, canRedo, isGridVisible, isDirty, theme, projectName, isBorderVisible } = modelState;
     const [isGridFlyoutOpen, setGridFlyoutOpen] = useState(false);
+    const [isBorderFlyoutOpen, setBorderFlyoutOpen] = useState(false);
     const [isEditingName, setIsEditingName] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -134,6 +182,21 @@ export const Header = ({ controller, modelState }: HeaderProps) => {
                     <div className="flex items-center gap-3">
                         <button onClick={() => controller.executeCommandWithoutHistory(ZoomCommand, 1.2)} className="p-2 rounded hover:bg-background-tertiary" title="Zoom In"><ZoomIn size={18} /></button>
                         <button onClick={() => controller.executeCommandWithoutHistory(ZoomCommand, 0.8)} className="p-2 rounded hover:bg-background-tertiary" title="Zoom Out"><ZoomOut size={18} /></button>
+
+                        <div className="h-6 border-l border-border-primary"></div>
+
+                        <div className="relative">
+                            <div className={`flex items-center rounded-md ${isBorderVisible ? 'bg-accent-primary' : 'bg-background-secondary hover:bg-background-tertiary'}`}>
+                                <button onClick={() => controller.executeCommandWithoutHistory(ToggleBorderVisibilityCommand)} className="p-2 rounded-l-md" title="Toggle Canvas Border">
+                                    <BoxSelect size={18} />
+                                </button>
+                                <div className="w-px h-5 bg-border-secondary opacity-50"></div>
+                                <button onClick={() => setBorderFlyoutOpen(!isBorderFlyoutOpen)} className="p-2 rounded-r-md" title="Border Options">
+                                    <ChevronDown size={16} />
+                                </button>
+                            </div>
+                            {isBorderFlyoutOpen && <BorderColorFlyout controller={controller} onclose={() => setBorderFlyoutOpen(false)} />}
+                        </div>
 
                         <div className="relative">
                             <div className={`flex items-center rounded-md ${isGridVisible ? 'bg-accent-primary' : 'bg-background-secondary hover:bg-background-tertiary'}`}>

@@ -1,3 +1,5 @@
+// FILE: src\core\AppController.ts
+
 // The main controller (Singleton) for the application, handling user input and orchestrating model/view updates.
 import { fabric } from 'fabric';
 import { CanvasModel } from './CanvasModel';
@@ -302,6 +304,7 @@ export class AppController {
             } else {
                 this.model.setState({ isDirty: false });
             }
+            this.fabricCanvas.fire('app:history:saved');
         }
     };
 

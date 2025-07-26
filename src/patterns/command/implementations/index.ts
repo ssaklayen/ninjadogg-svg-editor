@@ -1,3 +1,4 @@
+// FILE: src/patterns/command/implementations/index.ts
 // src/patterns/command/implementations/index.ts
 export * from './AddLayerCommand';
 export * from './ApplyFillCommand';
@@ -52,3 +53,5 @@ export * from './ToggleLayerPreviewBackgroundCommand';
 export * from './SetGridColorCommand';
 export * from './ToggleThemeCommand';
 export * from './RenameProjectCommand';
+export * from './ToggleBorderVisibilityCommand';
+export * from './SetBorderColorCommand';

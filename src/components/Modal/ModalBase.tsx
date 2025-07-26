@@ -21,7 +21,11 @@ export const ModalBase = ({ children, onClose, widthClass = 'max-w-lg' }: ModalB
     return (
         <div
             className="fixed inset-0 bg-black/75 flex items-center justify-center z-50"
-            onClick={onClose}
+            onClick={(e) => {
+                if (e.target === e.currentTarget && onClose) {
+                    onClose();
+                }
+            }}
         >
             <div
                 className={`bg-background-secondary p-8 rounded-lg shadow-2xl text-text-primary w-full ${widthClass}`}
