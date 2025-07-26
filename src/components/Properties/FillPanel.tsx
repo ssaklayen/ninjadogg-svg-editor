@@ -9,7 +9,7 @@ interface FillPanelProps {
     onFillToggle: (enabled: boolean) => void;
     fillType: 'solid' | 'gradient';
     onFillTypeChange: (type: 'solid' | 'gradient') => void;
-    solidColor: string;
+    solidColor: string | undefined;
     onSolidColorChange: (color: string) => void;
     gradient: IGradientOptions | null;
     onGradientChange: (gradient: IGradientOptions) => void;
@@ -23,14 +23,17 @@ export const FillPanel = (props: FillPanelProps) => {
         if (onCommit) onCommit();
     });
     const [isEditingHex, setIsEditingHex] = useState(false);
-    const [editingHexValue, setEditingHexValue] = useState(solidColor.substring(1).toUpperCase());
+    const [editingHexValue, setEditingHexValue] = useState((solidColor ?? '#000000').substring(1).toUpperCase());
     const hexInputRef = useRef<HTMLInputElement>(null);
+
+    const displayColor = solidColor ?? '#000000';
+    const isMixedValue = solidColor === undefined;
 
     useEffect(() => {
         if (!isEditingHex) {
-            setEditingHexValue(solidColor.substring(1).toUpperCase());
+            setEditingHexValue(displayColor.substring(1).toUpperCase());
         }
-    }, [solidColor, isEditingHex]);
+    }, [solidColor, isEditingHex, displayColor]);
 
     useEffect(() => {
         if (isEditingHex && hexInputRef.current) {
@@ -40,7 +43,7 @@ export const FillPanel = (props: FillPanelProps) => {
     }, [isEditingHex]);
 
     const handleHexDoubleClick = () => {
-        setEditingHexValue(solidColor.substring(1).toUpperCase());
+        setEditingHexValue(displayColor.substring(1).toUpperCase());
         setIsEditingHex(true);
     };
 
@@ -90,13 +93,13 @@ export const FillPanel = (props: FillPanelProps) => {
                                     ref={triggerRef}
                                     onClick={openPicker}
                                     className="w-10 h-6 p-0 border border-border-secondary rounded-md bg-transparent cursor-pointer"
-                                    style={{ backgroundColor: solidColor }}
+                                    style={{ background: isMixedValue ? 'linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet)' : displayColor }}
                                 />
                                 {isOpen && (
                                     <ColorPicker
                                         ref={pickerRef}
                                         position={position}
-                                        initialColor={solidColor}
+                                        initialColor={displayColor}
                                         onChange={onSolidColorChange}
                                         onClose={closePicker}
                                     />
@@ -106,12 +109,13 @@ export const FillPanel = (props: FillPanelProps) => {
                                     <input
                                         ref={hexInputRef}
                                         type="text"
-                                        value={isEditingHex ? editingHexValue : solidColor.substring(1).toUpperCase()}
+                                        value={isEditingHex ? editingHexValue : (isMixedValue ? '' : displayColor.substring(1).toUpperCase())}
+                                        placeholder={isMixedValue ? 'Multi' : ''}
                                         onBlur={handleHexBlur}
                                         onChange={handleHexChange}
                                         onKeyDown={handleHexKeyDown}
                                         readOnly={!isEditingHex}
-                                        className={`w-20 bg-background-secondary rounded p-1 text-text-primary text-center text-xs font-mono ${!isEditingHex ? 'select-none cursor-default' : ''}`}
+                                        className={`w-20 bg-background-secondary rounded p-1 text-text-primary text-center text-xs font-mono placeholder:text-text-muted ${!isEditingHex ? 'select-none cursor-default' : ''}`}
                                         maxLength={6}
                                         tabIndex={!isEditingHex ? -1 : 0}
                                     />

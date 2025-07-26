@@ -5,7 +5,7 @@ import { ColorPicker } from '../Panels/ColorPicker';
 interface StrokePanelProps {
     isStrokeEnabled: boolean;
     onStrokeToggle: (enabled: boolean) => void;
-    strokeColor: string;
+    strokeColor: string | undefined;
     onStrokeColorChange: (color: string) => void;
     strokeWidth: number;
     onStrokeWidthChange: (width: number) => void;
@@ -19,14 +19,17 @@ export const StrokePanel = (props: StrokePanelProps) => {
         if (onCommit) onCommit();
     });
     const [isEditingHex, setIsEditingHex] = useState(false);
-    const [editingHexValue, setEditingHexValue] = useState(strokeColor.substring(1).toUpperCase());
+    const [editingHexValue, setEditingHexValue] = useState((strokeColor ?? '#000000').substring(1).toUpperCase());
     const hexInputRef = useRef<HTMLInputElement>(null);
+
+    const displayColor = strokeColor ?? '#000000';
+    const isMixedValue = strokeColor === undefined;
 
     useEffect(() => {
         if (!isEditingHex) {
-            setEditingHexValue(strokeColor.substring(1).toUpperCase());
+            setEditingHexValue(displayColor.substring(1).toUpperCase());
         }
-    }, [strokeColor, isEditingHex]);
+    }, [strokeColor, isEditingHex, displayColor]);
 
     useEffect(() => {
         if (isEditingHex && hexInputRef.current) {
@@ -36,7 +39,7 @@ export const StrokePanel = (props: StrokePanelProps) => {
     }, [isEditingHex]);
 
     const handleHexDoubleClick = () => {
-        setEditingHexValue(strokeColor.substring(1).toUpperCase());
+        setEditingHexValue(displayColor.substring(1).toUpperCase());
         setIsEditingHex(true);
     };
 
@@ -81,13 +84,13 @@ export const StrokePanel = (props: StrokePanelProps) => {
                                 ref={triggerRef}
                                 onClick={openPicker}
                                 className="w-10 h-6 p-0 border border-border-secondary rounded-md bg-transparent cursor-pointer"
-                                style={{ backgroundColor: strokeColor }}
+                                style={{ background: isMixedValue ? 'linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet)' : displayColor }}
                             />
                             {isOpen && (
                                 <ColorPicker
                                     ref={pickerRef}
                                     position={position}
-                                    initialColor={strokeColor}
+                                    initialColor={displayColor}
                                     onChange={onStrokeColorChange}
                                     onClose={closePicker}
                                 />
@@ -97,12 +100,13 @@ export const StrokePanel = (props: StrokePanelProps) => {
                                 <input
                                     ref={hexInputRef}
                                     type="text"
-                                    value={isEditingHex ? editingHexValue : strokeColor.substring(1).toUpperCase()}
+                                    value={isEditingHex ? editingHexValue : (isMixedValue ? '' : displayColor.substring(1).toUpperCase())}
+                                    placeholder={isMixedValue ? 'Multi' : ''}
                                     onBlur={handleHexBlur}
                                     onChange={handleHexChange}
                                     onKeyDown={handleHexKeyDown}
                                     readOnly={!isEditingHex}
-                                    className={`w-20 bg-background-secondary rounded p-1 text-text-primary text-center text-xs font-mono ${!isEditingHex ? 'select-none cursor-default' : ''}`}
+                                    className={`w-20 bg-background-secondary rounded p-1 text-text-primary text-center text-xs font-mono placeholder:text-text-muted ${!isEditingHex ? 'select-none cursor-default' : ''}`}
                                     maxLength={6}
                                     tabIndex={!isEditingHex ? -1 : 0}
                                 />
