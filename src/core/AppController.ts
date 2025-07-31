@@ -1,4 +1,3 @@
-// src/core/AppController.ts
 import { fabric } from 'fabric';
 import { CanvasModel } from './CanvasModel';
 import { HistoryManager } from '../patterns/memento/HistoryManager';
@@ -172,8 +171,6 @@ export class AppController {
         if (!this.fabricCanvas) return;
         this.fabricCanvas.isDragging = false;
 
-        // **FIX**: Only re-enable selection if the active tool is the select tool.
-        // This prevents panning from breaking the state of other tools like the Pen Tool.
         const activeToolName = this.model.getState().activeTool;
         if (activeToolName === 'select') {
             this.fabricCanvas.selection = true;
@@ -234,19 +231,6 @@ export class AppController {
 
     private handleTextChanged = () => { this.saveStateToHistory(); };
 
-    // private handleMouseWheel = (opt: fabric.IEvent<WheelEvent>) => {
-    //     if (!opt.e || !this.fabricCanvas) return;
-    //     const delta = opt.e.deltaY;
-    //     let zoom = this.fabricCanvas.getZoom();
-    //     zoom *= 0.999 ** delta;
-    //     if (zoom > 20) zoom = 20;
-    //     if (zoom < 0.01) zoom = 0.01;
-    //     this.fabricCanvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
-    //     opt.e.preventDefault();
-    //     opt.e.stopPropagation();
-    //     this.executeCommandWithoutHistory(UpdateCanvasStateCommand);
-    // };
-
     private handleMouseWheel = (opt: fabric.IEvent<WheelEvent>) => {
         if (!opt.e || !this.fabricCanvas) return;
         const delta = opt.e.deltaY;
@@ -290,7 +274,24 @@ export class AppController {
     public createMemento = (): CanvasMemento => {
         if (!this.fabricCanvas) throw new Error("Canvas not initialized");
         const canvasJSON = this.fabricCanvas.toJSON();
-        const stateToSave = { ...this.model.getState(), canvas: canvasJSON };
+
+        // Get pen tool edit state
+        const penTool = this.getTool('pen') as PenTool;
+        let penToolEditState = undefined;
+
+        if (penTool && penTool.isInEditMode()) {
+            penToolEditState = {
+                isEditing: true,
+                editingObjectId: penTool.getEditingObjectId()
+            };
+        }
+
+        const stateToSave = {
+            ...this.model.getState(),
+            canvas: canvasJSON,
+            penToolEditState
+        };
+
         return new CanvasMemento(stateToSave);
     }
 
@@ -311,15 +312,42 @@ export class AppController {
         if (!this.fabricCanvas) return;
         const state = memento.getState();
         const selectedObjectIds = (state.selectedObjects as fabric.Object[]).map(o => o.id);
+        const penToolEditState = state.penToolEditState;
+
+        // Batch all updates
+        this.fabricCanvas.renderOnAddRemove = false;
+        const currentRenderAll = this.fabricCanvas.requestRenderAll;
+        let renderRequested = false;
+
+        // Override requestRenderAll to batch renders
+        this.fabricCanvas.requestRenderAll = () => {
+            renderRequested = true;
+            return this.fabricCanvas!;
+        };
 
         this.model.setState({ ...state, selection: null, selectedObjects: [] });
 
         this.fabricCanvas.loadFromJSON(state.canvas, () => {
             if (!this.fabricCanvas) return;
+
             const objectsToSelect = this.fabricCanvas.getObjects().filter(obj => selectedObjectIds.includes(obj.id!));
             this._restoreSelection(objectsToSelect);
             this.executeCommandWithoutHistory(UpdateCanvasStateCommand);
             this.updateHistoryState();
+
+            // Fire event
+            this.fabricCanvas.fire('history:restored', {
+                restoredObjects: this.fabricCanvas.getObjects(),
+                penToolEditState
+            });
+
+            // Restore rendering and do single render
+            this.fabricCanvas.requestRenderAll = currentRenderAll;
+            this.fabricCanvas.renderOnAddRemove = true;
+
+            if (renderRequested) {
+                this.fabricCanvas.requestRenderAll();
+            }
         });
     }
 

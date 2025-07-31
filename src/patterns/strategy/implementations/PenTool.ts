@@ -49,6 +49,9 @@ export class PenTool extends Tool {
         this.canvas.requestRenderAll();
         document.addEventListener('keydown', this.handleKeyDown);
         document.addEventListener('keyup', this.handleKeyUp);
+
+        // ADD THIS LINE: Listen for history restore events
+        this.canvas.on('history:restored', this.handleHistoryRestore);
     }
 
     public deactivate(): void {
@@ -58,6 +61,10 @@ export class PenTool extends Tool {
         this.exitEditMode();
         document.removeEventListener('keydown', this.handleKeyDown);
         document.removeEventListener('keyup', this.handleKeyUp);
+
+        // ADD THIS LINE: Remove history restore listener
+        this.canvas.off('history:restored', this.handleHistoryRestore);
+
         this.canvas.selection = true;
         this.canvas.defaultCursor = 'default';
 
@@ -698,53 +705,6 @@ export class PenTool extends Tool {
         currentPoint.handle1.setFromPoint(origin.subtract(dragVector));
     }
 
-    // Update handle during editing with constraints
-    // private updateEditingHandle(pointer: fabric.Point, isAltDown: boolean, isShiftDown: boolean): void {
-    //     if (!this.draggedHandle || !this.editingAnchorData) return;
-    //
-    //     const { pointIndex, handle } = this.draggedHandle;
-    //     const pointData = this.editingAnchorData[pointIndex];
-    //
-    //     if (handle === 'anchor') {
-    //         const delta = pointer.subtract(pointData.anchor);
-    //         pointData.anchor.setFromPoint(pointer);
-    //         pointData.handle1.addEquals(delta);
-    //         pointData.handle2.addEquals(delta);
-    //     } else {
-    //         if (isShiftDown) {
-    //             // Constrain to straight line through anchor
-    //             const vector = pointer.subtract(pointData.anchor);
-    //             const length = Math.max(this.MIN_HANDLE_LENGTH, vector.distanceFrom(new fabric.Point(0, 0)));
-    //             const angle = Math.atan2(vector.y, vector.x);
-    //
-    //             pointData[handle] = new fabric.Point(
-    //                 pointData.anchor.x + Math.cos(angle) * length,
-    //                 pointData.anchor.y + Math.sin(angle) * length
-    //             );
-    //
-    //             // Keep opposite handle straight
-    //             const oppositeHandle = handle === 'handle1' ? 'handle2' : 'handle1';
-    //             const oppositeLength = pointData[oppositeHandle].distanceFrom(pointData.anchor);
-    //             pointData[oppositeHandle] = new fabric.Point(
-    //                 pointData.anchor.x - Math.cos(angle) * Math.max(this.MIN_HANDLE_LENGTH, oppositeLength),
-    //                 pointData.anchor.y - Math.sin(angle) * Math.max(this.MIN_HANDLE_LENGTH, oppositeLength)
-    //             );
-    //         } else {
-    //             pointData[handle].setFromPoint(pointer);
-    //             if (!isAltDown) {
-    //                 // Mirror handle for smooth curve
-    //                 const oppositeHandle = handle === 'handle1' ? 'handle2' : 'handle1';
-    //                 const vector = pointData.anchor.subtract(pointer);
-    //                 pointData[oppositeHandle].setFromPoint(pointData.anchor.add(vector));
-    //             }
-    //         }
-    //     }
-    //
-    //     // Create live preview instead of modifying the actual path
-    //     this.updateLivePreview();
-    //     this.renderEditHandles();
-    // }
-
     // New method for live preview during editing
     private updateLivePreview(): void {
         if (!this.editingObject || !this.editingAnchorData) return;
@@ -876,31 +836,6 @@ export class PenTool extends Tool {
         this.canvas.requestRenderAll();
     }
 
-
-    // Convert coordinates between systems
-    // private convertPathRelativeToAbsolute(): IAnchorPoint[] {
-    //     if (!this.editingObject?.anchorData) return [];
-    //
-    //     const objectLeft = this.editingObject.left || 0;
-    //     const objectTop = this.editingObject.top || 0;
-    //     const pathOffsetX = this.editingObject.pathOffset.x;
-    //     const pathOffsetY = this.editingObject.pathOffset.y;
-    //
-    //     return this.editingObject.anchorData.map(point => ({
-    //         anchor: new fabric.Point(
-    //             point.anchor.x + objectLeft + pathOffsetX,
-    //             point.anchor.y + objectTop + pathOffsetY
-    //         ),
-    //         handle1: new fabric.Point(
-    //             point.handle1.x + objectLeft + pathOffsetX,
-    //             point.handle1.y + objectTop + pathOffsetY
-    //         ),
-    //         handle2: new fabric.Point(
-    //             point.handle2.x + objectLeft + pathOffsetX,
-    //             point.handle2.y + objectTop + pathOffsetY
-    //         )
-    //     }));
-    // }
     private convertPathRelativeToAbsolute(): IAnchorPoint[] {
         if (!this.editingObject?.anchorData) return [];
 
@@ -967,10 +902,6 @@ export class PenTool extends Tool {
         });
     }
 
-    public getEditingObjectId(): string | null {
-        return this.editingObject?.id || null;
-    }
-
     // Regenerate path from data
     private regeneratePathFromData(): void {
         if (!this.editingObject || !this.editingAnchorData) return;
@@ -998,6 +929,7 @@ export class PenTool extends Tool {
         this.removeVisualAids();
 
         this.editingAnchorData.forEach((p, index) => {
+            // Add handle lines
             this.visualAids.push(
                 new fabric.Line([p.anchor.x, p.anchor.y, p.handle1.x, p.handle1.y],
                     this.getHandleLineProps())
@@ -1006,11 +938,14 @@ export class PenTool extends Tool {
                 new fabric.Line([p.anchor.x, p.anchor.y, p.handle2.x, p.handle2.y],
                     this.getHandleLineProps())
             );
+
+            // Add handle controls
             this.visualAids.push(this.createHandleControl(p.handle1, index, 'handle1'));
             this.visualAids.push(this.createHandleControl(p.handle2, index, 'handle2'));
             this.visualAids.push(this.createAnchorControl(p.anchor, index));
         });
 
+        // DO NOT add any dashed line for closing segment
         this.canvas.add(...this.visualAids);
         this.canvas.requestRenderAll();
     }
@@ -1032,33 +967,38 @@ export class PenTool extends Tool {
     public generatePathString(data: IAnchorPoint[], isClosed: boolean = false): string {
         if (data.length === 0) return '';
 
-        let pathString = `M ${data[0].anchor.x} ${data[0].anchor.y}`;
+        const coords = (p: fabric.Point) => `${p.x},${p.y}`;
+        let pathData: string[] = [`M ${coords(data[0].anchor)}`];
 
+        // Generate all segments
         for (let i = 0; i < data.length - 1; i++) {
             const p1 = data[i];
             const p2 = data[i + 1];
-            pathString += ` C ${p1.handle2.x} ${p1.handle2.y}, ${p2.handle1.x} ${p2.handle1.y}, ${p2.anchor.x} ${p2.anchor.y}`;
+            pathData.push(`C ${coords(p1.handle2)} ${coords(p2.handle1)} ${coords(p2.anchor)}`);
         }
 
+        // Handle closing if needed
         if (isClosed && data.length > 1) {
             const last = data[data.length - 1];
             const first = data[0];
 
-            // Check if handles are at anchor points (straight line closing)
+            // Always add the closing curve, even if it's a straight line
             const lastHandleCollapsed = last.handle2.distanceFrom(last.anchor) < 1;
             const firstHandleCollapsed = first.handle1.distanceFrom(first.anchor) < 1;
 
             if (lastHandleCollapsed && firstHandleCollapsed) {
-                // Straight line
-                pathString += ` L ${first.anchor.x} ${first.anchor.y}`;
+                // Use line for straight closing
+                pathData.push(`L ${coords(first.anchor)}`);
             } else {
-                // Curved closing
-                pathString += ` C ${last.handle2.x} ${last.handle2.y}, ${first.handle1.x} ${first.handle1.y}, ${first.anchor.x} ${first.anchor.y}`;
+                // Use curve for smooth closing
+                pathData.push(`C ${coords(last.handle2)} ${coords(first.handle1)} ${coords(first.anchor)}`);
             }
-            pathString += ' Z';
+
+            // Add closing command
+            pathData.push('Z');
         }
 
-        return pathString;
+        return pathData.join(' ');
     }
 
     // Check if point is near first anchor
@@ -1275,42 +1215,7 @@ export class PenTool extends Tool {
         }
     }
 
-    /**
-     * Get the effective vertex type for a point (with backwards compatibility)
-     */
-    private getVertexType(point: IAnchorPoint): VertexType {
-        // Backwards compatibility: if no vertexType is set, infer from handle positions
-        if (!point.vertexType) {
-            const h1Dist = point.handle1.distanceFrom(point.anchor);
-            const h2Dist = point.handle2.distanceFrom(point.anchor);
-
-            // If both handles are collapsed, it's a corner
-            if (h1Dist < 5 && h2Dist < 5) {
-                return VertexType.CORNER;
-            }
-
-            // Check if handles are collinear (smooth or asymmetric)
-            if (h1Dist > 5 && h2Dist > 5) {
-                const angle1 = Math.atan2(point.handle1.y - point.anchor.y, point.handle1.x - point.anchor.x);
-                const angle2 = Math.atan2(point.handle2.y - point.anchor.y, point.handle2.x - point.anchor.x);
-                const angleDiff = Math.abs(angle1 - angle2);
-                const normalizedDiff = Math.abs(angleDiff - Math.PI);
-
-                if (normalizedDiff < 0.1) { // ~5.7 degrees tolerance
-                    // Check if lengths are equal (smooth) or different (asymmetric)
-                    const lengthDiff = Math.abs(h1Dist - h2Dist);
-                    return lengthDiff < 5 ? VertexType.SMOOTH : VertexType.ASYMMETRIC;
-                }
-            }
-
-            return VertexType.CORNER; // Default fallback
-        }
-
-        return point.vertexType;
-    }
-
     // Enhanced updateEditingHandle method with vertex type support
-
     private updateEditingHandle(pointer: fabric.Point, isShiftDown: boolean): void {
         if (!this.draggedHandle || !this.editingAnchorData) return;
 
@@ -1412,58 +1317,113 @@ export class PenTool extends Tool {
         }
     }
 
+    private handleHistoryRestore = (e: fabric.IEvent & {
+        restoredObjects?: fabric.Object[],
+        penToolEditState?: { isEditing: boolean; editingObjectId?: string }
+    }) => {
+        const restoredObjects = e.restoredObjects || this.canvas.getObjects();
+        const penToolEditState = e.penToolEditState;
 
-    // New method for asymmetric handle behavior
-    private updateAsymmetricHandle(
-        pointData: IAnchorPoint,
-        draggedHandle: 'handle1' | 'handle2',
-        oppositeHandle: 'handle1' | 'handle2',
-        pointer: fabric.Point
-    ): void {
-        // Update the dragged handle
-        pointData[draggedHandle].setFromPoint(pointer);
+        // Check if we should restore edit mode
+        if (penToolEditState?.isEditing && penToolEditState.editingObjectId) {
+            const targetObject = restoredObjects.find(obj =>
+                obj.id === penToolEditState.editingObjectId && obj.isPenObject
+            ) as fabric.Path | undefined;
 
-        // Calculate the direction from anchor to dragged handle
-        const dragVector = pointer.subtract(pointData.anchor);
-        const dragLength = dragVector.distanceFrom(new fabric.Point(0, 0));
+            if (targetObject) {
+                // Ensure the path data is intact before entering edit mode
+                if (targetObject.isPathClosed && targetObject.path) {
+                    const pathStr = this.generatePathString(
+                        hydrateAnchorData(targetObject.anchorData),
+                        true
+                    );
+                    const validatedPath = new fabric.Path(pathStr);
+                    targetObject.set({
+                        path: validatedPath.path,
+                        dirty: true
+                    });
+                }
 
-        if (dragLength > 0) {
-            // Get the current length of the opposite handle
-            const oppositeVector = pointData[oppositeHandle].subtract(pointData.anchor);
-            const oppositeLength = oppositeVector.distanceFrom(new fabric.Point(0, 0));
+                this.enterEditMode(targetObject);
+                return;
+            }
+        }
 
-            // Normalize the drag direction and apply it to the opposite handle with its current length
-            const normalizedDrag = this.normalizeVector(dragVector);
-            const oppositeDirection = new fabric.Point(-normalizedDrag.x, -normalizedDrag.y);
+        // Handle current edit mode if active
+        if (this.mode === 'EDITING' && this.editingObject) {
+            const currentEditingId = this.editingObject.id;
+            const restoredEditingObject = restoredObjects.find(obj =>
+                obj.id === currentEditingId && obj.isPenObject
+            ) as fabric.Path | undefined;
 
-            pointData[oppositeHandle] = new fabric.Point(
-                pointData.anchor.x + oppositeDirection.x * Math.max(this.MIN_HANDLE_LENGTH, oppositeLength),
-                pointData.anchor.y + oppositeDirection.y * Math.max(this.MIN_HANDLE_LENGTH, oppositeLength)
-            );
+            if (restoredEditingObject) {
+                this.resyncEditMode(restoredEditingObject);
+            } else {
+                this.exitEditMode();
+            }
+        }
+    };
+
+    private resyncEditMode(restoredObject: fabric.Path): void {
+        // Clean up current visual aids
+        this.removeVisualAids();
+
+        // Update our reference
+        this.editingObject = restoredObject;
+
+        // Validate the path before proceeding
+        this.validateAndFixPath(this.editingObject);
+
+        // Recalculate anchor data
+        this.editingAnchorData = this.convertPathRelativeToAbsolute();
+
+        // Re-render the edit handles
+        this.renderEditHandles();
+
+        // Set edit mode properties
+        this.editingObject.set({
+            objectCaching: false,
+            hasControls: false,
+            lockMovementX: true,
+            lockMovementY: true,
+            borderColor: 'transparent',
+            evented: true,
+            selectable: false
+        });
+
+        this.canvas.requestRenderAll();
+    }
+
+    // Add this method to PenTool class if it's missing
+    public getEditingObjectId(): string | null {
+        return this.editingObject?.id || null;
+    }
+
+    public validateAndFixPath(penObject: fabric.Path): void {
+        if (!penObject.isPenObject || !penObject.path) return;
+
+        const isSupposedToBeClosed = penObject.isPathClosed;
+        const pathCommands = penObject.path as any[];
+        const hasClosingCommand = pathCommands.some(cmd =>
+            Array.isArray(cmd) && (cmd[0] === 'Z' || cmd[0] === 'z')
+        );
+
+        if (isSupposedToBeClosed && !hasClosingCommand) {
+            // Path should be closed but isn't
+            console.warn('Fixing unclosed path that should be closed');
+
+            // Regenerate the path properly
+            if (penObject.anchorData) {
+                const anchorData = hydrateAnchorData(penObject.anchorData);
+                const fixedPathString = this.generatePathString(anchorData, true);
+                const fixedPath = new fabric.Path(fixedPathString);
+
+                penObject.set({
+                    path: fixedPath.path,
+                    dirty: true
+                });
+            }
         }
     }
 
-    // New method for shift-constrained straight line behavior
-    private constrainHandleToStraightLine(
-        pointData: IAnchorPoint,
-        draggedHandle: 'handle1' | 'handle2',
-        oppositeHandle: 'handle1' | 'handle2',
-        pointer: fabric.Point
-    ): void {
-        const vector = pointer.subtract(pointData.anchor);
-        const length = Math.max(this.MIN_HANDLE_LENGTH, vector.distanceFrom(new fabric.Point(0, 0)));
-        const angle = Math.atan2(vector.y, vector.x);
-
-        pointData[draggedHandle] = new fabric.Point(
-            pointData.anchor.x + Math.cos(angle) * length,
-            pointData.anchor.y + Math.sin(angle) * length
-        );
-
-        // Keep opposite handle straight and collinear
-        const oppositeLength = pointData[oppositeHandle].distanceFrom(pointData.anchor);
-        pointData[oppositeHandle] = new fabric.Point(
-            pointData.anchor.x - Math.cos(angle) * Math.max(this.MIN_HANDLE_LENGTH, oppositeLength),
-            pointData.anchor.y - Math.sin(angle) * Math.max(this.MIN_HANDLE_LENGTH, oppositeLength)
-        );
-    }
 }

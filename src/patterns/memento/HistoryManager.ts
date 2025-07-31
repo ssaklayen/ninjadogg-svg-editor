@@ -31,6 +31,13 @@ export class HistoryManager {
         const nextMemento = this.redoStack.pop()!;
         this.undoStack.push(nextMemento);
         this.originator.restoreFromMemento(nextMemento);
+
+        // Fire event for redo as well
+        if (this.originator.fabricCanvas) {
+            this.originator.fabricCanvas.fire('history:restored', {
+                restoredObjects: this.originator.fabricCanvas.getObjects()
+            });
+        }
     }
 
     public canUndo = (): boolean => this.undoStack.length > 1;

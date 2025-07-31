@@ -42,6 +42,14 @@ declare module 'fabric' {
 
             fill: string | Pattern | Gradient;
             stroke: string | Pattern | Gradient;
+
+            _originalTransform?: {
+                angle: number;
+                scaleX: number;
+                scaleY: number;
+                skewX: number;
+                skewY: number;
+            };
         }
 
         interface Path {

@@ -180,6 +180,11 @@ export interface ICanvasState {
 
     liveFontSize?: number;
     pendingAction: (() => void) | null;
+
+    penToolEditState?: {
+        isEditing: boolean;
+        editingObjectId?: string;
+    };
 }
 
 /**

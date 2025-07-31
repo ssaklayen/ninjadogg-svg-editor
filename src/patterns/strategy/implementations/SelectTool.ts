@@ -1,4 +1,3 @@
-// src/patterns/strategy/implementations/SelectTool.ts
 import { fabric } from 'fabric';
 import { Tool } from '../Tool';
 import { UpdateCanvasStateCommand } from '../../command/implementations';
@@ -103,20 +102,6 @@ export class SelectTool extends Tool {
         }
     };
 
-    // private onObjectRotating = (o: fabric.IEvent): void => {
-    //     const target = o.target;
-    //     if (!target || !this.isRotating) return;
-    //
-    //     target.set({
-    //         angle: target.angle,
-    //         dirty: true
-    //     });
-    //
-    //     if (target.controls) {
-    //         target.setCoords();
-    //     }
-    // };
-
     private onObjectRotating = (o: fabric.IEvent): void => {
         const target = o.target;
         if (!target || !this.isRotating) return;
@@ -145,14 +130,6 @@ export class SelectTool extends Tool {
         const target = e.target;
         if (target) {
             target.objectCaching = false;
-
-            if (target.isPenObject && target.anchorData) {
-                const penObject = target as fabric.Path;
-                penObject._originalPathOffset = new fabric.Point(
-                    penObject.pathOffset.x,
-                    penObject.pathOffset.y
-                );
-            }
         }
     };
 
@@ -196,76 +173,56 @@ export class SelectTool extends Tool {
         const skewX = penObject.skewX || 0;
         const skewY = penObject.skewY || 0;
 
-        // IMPORTANT: Skip processing if ONLY rotation was applied
-        // Let Fabric.js handle pure rotation naturally like other objects
         if (scaleX === 1 && scaleY === 1 && skewX === 0 && skewY === 0) {
-            // Even if angle !== 0, don't process - let rotation work naturally
             penObject.setCoords();
             return;
         }
 
-        // Only process if there's actual scaling, skewing, or complex transformations
-        // (not just rotation)
         const penTool = this.controller.getTool('pen') as PenTool;
-        if (!penTool) return;
+        if (!penTool || !penObject.anchorData) return;
 
-        const hydratedAnchorData = hydrateAnchorData(penObject.anchorData);
-        const originalPathOffset = penObject._originalPathOffset || penObject.pathOffset;
+        const anchorData = hydrateAnchorData(penObject.anchorData);
+        const pathOffset = penObject.pathOffset;
 
-        const angleRad = angle * Math.PI / 180;
-        const skewXRad = skewX * Math.PI / 180;
-        const skewYRad = skewY * Math.PI / 180;
-
-        const transformMatrix = [
-            scaleX * Math.cos(angleRad),
-            scaleX * Math.sin(angleRad),
-            -scaleY * Math.sin(angleRad + skewXRad),
-            scaleY * Math.cos(angleRad + skewXRad),
+        const matrix = [
+            scaleX,
+            skewX,
+            skewY,
+            scaleY,
             0,
             0
         ];
 
-        const absoluteAnchorData: IAnchorPoint[] = hydratedAnchorData.map(pointData => {
-            const objRelativeAnchor = pointData.anchor.add(originalPathOffset);
-            const objRelativeHandle1 = pointData.handle1.add(originalPathOffset);
-            const objRelativeHandle2 = pointData.handle2.add(originalPathOffset);
+        // Transform the anchor data
+        const transformedData: IAnchorPoint[] = anchorData.map(point => ({
+            anchor: fabric.util.transformPoint(point.anchor.add(pathOffset), matrix),
+            handle1: fabric.util.transformPoint(point.handle1.add(pathOffset), matrix),
+            handle2: fabric.util.transformPoint(point.handle2.add(pathOffset), matrix)
+        }));
 
-            return {
-                anchor: fabric.util.transformPoint(objRelativeAnchor, transformMatrix).add(new fabric.Point(penObject.left || 0, penObject.top || 0)),
-                handle1: fabric.util.transformPoint(objRelativeHandle1, transformMatrix).add(new fabric.Point(penObject.left || 0, penObject.top || 0)),
-                handle2: fabric.util.transformPoint(objRelativeHandle2, transformMatrix).add(new fabric.Point(penObject.left || 0, penObject.top || 0)),
-            };
-        });
+        // Generate new path
+        const pathString = penTool.generatePathString(transformedData, penObject.isPathClosed);
+        const newPath = new fabric.Path(pathString);
 
-        const absolutePathString = penTool.generatePathString(absoluteAnchorData, penObject.isPathClosed);
-        const tempPath = new fabric.Path(absolutePathString);
-
-        const newLeft = tempPath.left || 0;
-        const newTop = tempPath.top || 0;
-        const newPathOffset = new fabric.Point(tempPath.pathOffset.x, tempPath.pathOffset.y);
-
-        const pathRelativeAnchorData: IAnchorPoint[] = absoluteAnchorData.map(pointData => ({
-            anchor: pointData.anchor.subtract(new fabric.Point(newLeft, newTop)).subtract(newPathOffset),
-            handle1: pointData.handle1.subtract(new fabric.Point(newLeft, newTop)).subtract(newPathOffset),
-            handle2: pointData.handle2.subtract(new fabric.Point(newLeft, newTop)).subtract(newPathOffset),
+        // Update anchor data relative to new path offset
+        const newPathOffset = newPath.pathOffset;
+        const finalAnchorData: IAnchorPoint[] = transformedData.map(point => ({
+            anchor: point.anchor.subtract(newPathOffset),
+            handle1: point.handle1.subtract(newPathOffset),
+            handle2: point.handle2.subtract(newPathOffset)
         }));
 
         penObject.set({
-            path: tempPath.path,
+            path: newPath.path,
             pathOffset: newPathOffset,
-            left: newLeft,
-            top: newTop,
-            width: tempPath.width,
-            height: tempPath.height,
+            width: newPath.width,
+            height: newPath.height,
             scaleX: 1,
             scaleY: 1,
-            angle: 0, // Only reset angle if we're rebuilding the path
             skewX: 0,
             skewY: 0,
-            flipX: false,
-            flipY: false,
-            anchorData: pathRelativeAnchorData,
-            dirty: true,
+            anchorData: finalAnchorData,
+            dirty: true
         });
 
         delete penObject._originalPathOffset;
