@@ -5,6 +5,7 @@ import { fabric } from 'fabric';
  *
  * The `PreviewBackground` type is a string-based union that specifies
  * the available styles for a preview background. These styles represent
+
  * different visual themes that can be applied to a background.
  *
  * Possible values are:
@@ -101,6 +102,19 @@ export interface IContextMenuState {
     x: number;
     y: number;
     type: 'object' | 'layer';
+}
+
+export enum VertexType {
+    CORNER = 'corner',       // Handles move independently, can be collapsed
+    SMOOTH = 'smooth',       // Handles are always symmetrical (current behavior)
+    ASYMMETRIC = 'asymmetric' // Handles stay collinear but can have different lengths
+}
+
+export interface IAnchorPoint {
+    anchor: fabric.Point;
+    handle1: fabric.Point; // Control point before the anchor
+    handle2: fabric.Point; // Control point after the anchor
+    vertexType?: VertexType; // Optional for backwards compatibility
 }
 
 /**

@@ -30,12 +30,12 @@
 |   |   \-- stamp9.svg
 |   \-- static
 |       +-- css
-|       |   +-- main.34ed053f.css
-|       |   \-- main.34ed053f.css.map
+|       |   +-- main.0673850f.css
+|       |   \-- main.0673850f.css.map
 |       \-- js
-|           +-- main.82203a88.js
-|           +-- main.82203a88.js.LICENSE.txt
-|           \-- main.82203a88.js.map
+|           +-- main.5c51c2ed.js
+|           +-- main.5c51c2ed.js.LICENSE.txt
+|           \-- main.5c51c2ed.js.map
 +-- public
 |   +-- index.html
 |   \-- stamps
@@ -113,6 +113,7 @@
     |   |       +-- DeleteLayerCommand.ts
     |   |       +-- DeleteSelectedCommand.ts
     |   |       +-- DiscardChangesAndProceedCommand.ts
+    |   |       +-- EnterPenEditModeCommand.ts
     |   |       +-- ExportCommand.ts
     |   |       +-- index.ts
     |   |       +-- InitializeObjectPropertiesCommand.ts
@@ -157,6 +158,7 @@
     |   |       +-- UpdateBrushPropertiesCommand.ts
     |   |       +-- UpdateCanvasStateCommand.ts
     |   |       +-- UpdateDrawingDefaultsCommand.ts
+    |   |       +-- UpdatePenPathCommand.ts
     |   |       \-- ZoomCommand.ts
     |   +-- factory
     |   |   +-- index.ts

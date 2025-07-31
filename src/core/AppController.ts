@@ -1,6 +1,4 @@
-// FILE: src\core\AppController.ts
-
-// The main controller (Singleton) for the application, handling user input and orchestrating model/view updates.
+// src/core/AppController.ts
 import { fabric } from 'fabric';
 import { CanvasModel } from './CanvasModel';
 import { HistoryManager } from '../patterns/memento/HistoryManager';
@@ -13,16 +11,15 @@ import { ShowContextMenuCommand } from '../patterns/command/implementations';
 import { ObjectFactory } from '../patterns/factory';
 import { svgToPngDataUrl } from '../utils/svgToPngDataUrl';
 import { ILayer } from '../types/types';
+import { EnterPenEditModeCommand } from '../patterns/command/implementations/EnterPenEditModeCommand';
 
-// PATTERN: Singleton - Ensures a single instance of the AppController.
-// PATTERN: Controller (MVC) - Acts as the controller, handling user actions and updating the model.
 export class AppController {
     private static instance: AppController;
     public model: CanvasModel;
     public fabricCanvas: fabric.Canvas | null = null;
     public factory: ObjectFactory;
-    private tools: { [key: string]: Tool }; // PATTERN: Strategy - Holds different tool strategies.
-    private historyManager: HistoryManager; // PATTERN: Memento - Manages undo/redo history.
+    private tools: { [key: string]: Tool };
+    private historyManager: HistoryManager;
     private lastPosX: number = 0;
     private lastPosY: number = 0;
 
@@ -30,7 +27,7 @@ export class AppController {
         this.model = new CanvasModel();
         this.tools = {};
         this.historyManager = new HistoryManager(this);
-        this.factory = new ObjectFactory(); // PATTERN: Factory - Used to create objects.
+        this.factory = new ObjectFactory();
     }
 
     public static getInstance(): AppController {
@@ -40,7 +37,6 @@ export class AppController {
         return AppController.instance;
     }
 
-    // PATTERN: Command - Executes a command and saves the state to history.
     public async executeCommand<C extends ICommand, A extends any[]>(
         CommandClass: new (controller: AppController, ...args: A) => C,
         ...args: A
@@ -50,7 +46,6 @@ export class AppController {
         this.saveStateToHistory();
     }
 
-    // PATTERN: Command - Executes a command without saving to history (for UI-only updates).
     public async executeCommandWithoutHistory<C extends ICommand, A extends any[]>(
         CommandClass: new (controller: AppController, ...args: A) => C,
         ...args: A
@@ -59,12 +54,12 @@ export class AppController {
         await command.execute();
     }
 
-    // Initializes the Fabric.js canvas and sets up tool strategies.
     public init(canvasEl: HTMLCanvasElement) {
         fabric.Object.prototype.toObject = (function (toObject) {
             return function (this: fabric.Object, propertiesToInclude) {
                 propertiesToInclude = (propertiesToInclude || []).concat([
-                    'layerId', 'id', 'isFillEnabled', 'solidFill', 'isGradientFillEnabled', 'gradientFill', 'isStrokeEnabled', 'solidStroke'
+                    'layerId', 'id', 'isFillEnabled', 'solidFill', 'isGradientFillEnabled', 'gradientFill',
+                    'isStrokeEnabled', 'solidStroke', 'isPenObject', 'anchorData'
                 ]);
                 return toObject.call(this, propertiesToInclude);
             };
@@ -78,7 +73,6 @@ export class AppController {
             selectionKey: 'ctrlKey',
         });
 
-        // PATTERN: Strategy - Initializes all tool strategies for the application.
         this.tools = {
             select: new SelectTool(this),
             rect: new RectTool(this),
@@ -134,7 +128,6 @@ export class AppController {
         }
     }
 
-    // Centralized setup for all Fabric.js event listeners.
     private setupCanvasListeners() {
         if (!this.fabricCanvas) return;
 
@@ -178,7 +171,13 @@ export class AppController {
     private _panEnd() {
         if (!this.fabricCanvas) return;
         this.fabricCanvas.isDragging = false;
-        this.fabricCanvas.selection = true;
+
+        // **FIX**: Only re-enable selection if the active tool is the select tool.
+        // This prevents panning from breaking the state of other tools like the Pen Tool.
+        const activeToolName = this.model.getState().activeTool;
+        if (activeToolName === 'select') {
+            this.fabricCanvas.selection = true;
+        }
     }
 
     private handleContextMenu = (e: MouseEvent) => {
@@ -189,7 +188,6 @@ export class AppController {
         this.executeCommandWithoutHistory(ShowContextMenuCommand, { visible: true, x: e.clientX, y: e.clientY, type });
     };
 
-    // Delegates mouse events to the currently active tool strategy.
     private handleMouseDown = (o: fabric.IEvent<MouseEvent>) => {
         this.executeCommandWithoutHistory(ShowContextMenuCommand, { visible: false, x: 0, y: 0, type: 'object' });
         if (o.e && o.e.altKey) {
@@ -236,6 +234,19 @@ export class AppController {
 
     private handleTextChanged = () => { this.saveStateToHistory(); };
 
+    // private handleMouseWheel = (opt: fabric.IEvent<WheelEvent>) => {
+    //     if (!opt.e || !this.fabricCanvas) return;
+    //     const delta = opt.e.deltaY;
+    //     let zoom = this.fabricCanvas.getZoom();
+    //     zoom *= 0.999 ** delta;
+    //     if (zoom > 20) zoom = 20;
+    //     if (zoom < 0.01) zoom = 0.01;
+    //     this.fabricCanvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+    //     opt.e.preventDefault();
+    //     opt.e.stopPropagation();
+    //     this.executeCommandWithoutHistory(UpdateCanvasStateCommand);
+    // };
+
     private handleMouseWheel = (opt: fabric.IEvent<WheelEvent>) => {
         if (!opt.e || !this.fabricCanvas) return;
         const delta = opt.e.deltaY;
@@ -246,17 +257,36 @@ export class AppController {
         this.fabricCanvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
         opt.e.preventDefault();
         opt.e.stopPropagation();
-        this.executeCommandWithoutHistory(UpdateCanvasStateCommand);
+
+        // Check if pen tool is in edit mode before updating canvas state
+        const penTool = this.getTool('pen') as PenTool;
+        const isInPenEditMode = penTool && penTool.isInEditMode(); // We'll need to add this method
+
+        if (!isInPenEditMode) {
+            this.executeCommandWithoutHistory(UpdateCanvasStateCommand);
+        } else {
+            // If in pen edit mode, refresh the edit handles to reflect new zoom level
+            penTool.refreshEditHandles();
+        }
     };
 
+
     private handleMouseDblClick = (o: fabric.IEvent<MouseEvent>) => {
+        const target = o.target;
+        if (target instanceof fabric.Path && target.isPenObject) {
+            if (o.e) {
+                o.e.preventDefault();
+                o.e.stopPropagation();
+            }
+            this.executeCommandWithoutHistory(EnterPenEditModeCommand, target);
+            return;
+        }
+
         this.getActiveToolStrategy().onDblClick(o);
     };
 
-    // PATTERN: Strategy - Retrieves the currently active tool strategy from the collection.
-    private getActiveToolStrategy = (): Tool => this.tools[this.model.getState().activeTool] || this.tools.select;
+    public getActiveToolStrategy = (): Tool => this.tools[this.model.getState().activeTool] || this.tools.select;
 
-    // PATTERN: Memento - Creates a memento (snapshot) of the current application state.
     public createMemento = (): CanvasMemento => {
         if (!this.fabricCanvas) throw new Error("Canvas not initialized");
         const canvasJSON = this.fabricCanvas.toJSON();
@@ -277,7 +307,6 @@ export class AppController {
         }
     }
 
-    // PATTERN: Memento - Restores the application state from a given memento.
     public restoreFromMemento(memento: CanvasMemento) {
         if (!this.fabricCanvas) return;
         const state = memento.getState();
@@ -321,4 +350,8 @@ export class AppController {
     private updateHistoryState = () => {
         this.model.setState({ canUndo: this.historyManager.canUndo(), canRedo: this.historyManager.canRedo() });
     };
+
+    public getTool = (toolName: string): Tool | undefined => {
+        return this.tools[toolName];
+    }
 }

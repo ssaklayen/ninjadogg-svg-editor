@@ -50,7 +50,7 @@ export const SelectionPropertiesPanel = ({ controller, modelState }: SelectionPr
     }, [selectedObjects]);
 
     const areAllText = selectedObjects.length > 0 && selectedObjects.every(o => o.type === 'i-text');
-    const fillNotApplicable = selectedObjects.every(o => o.type === 'line' || o.type === 'path');
+    const fillNotApplicable = selectedObjects.every(o => o.type === 'line' && !o.isPenObject);
 
     const commonProps = {
         isFillEnabled: getCommonValue('isFillEnabled', true),

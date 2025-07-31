@@ -1,5 +1,3 @@
-// FILE: src/patterns/command/implementations/index.ts
-// src/patterns/command/implementations/index.ts
 export * from './AddLayerCommand';
 export * from './ApplyFillCommand';
 export * from './ChangeLayerOpacityCommand';
@@ -55,3 +53,5 @@ export * from './ToggleThemeCommand';
 export * from './RenameProjectCommand';
 export * from './ToggleBorderVisibilityCommand';
 export * from './SetBorderColorCommand';
+export * from './EnterPenEditModeCommand';
+export * from './UpdatePenPathCommand';

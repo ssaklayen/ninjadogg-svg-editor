@@ -1,11 +1,9 @@
-// FILE: src/patterns/command/implementations/UpdateCanvasStateCommand.ts
-// Command to perform a full canvas render and state synchronization.
 import { ICommand } from "../ICommand";
 import { AppController } from "../../../core/AppController";
 import { fabric } from "fabric";
 import { Theme } from "../../../types/types";
+import { PenTool } from "../../strategy/implementations";
 
-// PATTERN: Command - Encapsulates the comprehensive process of updating the entire canvas view based on the current model state.
 export class UpdateCanvasStateCommand implements ICommand {
     private controller: AppController;
     private static darkCheckerboardPattern?: fabric.Pattern;
@@ -24,7 +22,7 @@ export class UpdateCanvasStateCommand implements ICommand {
         const {
             layers, isGridVisible, gridSize, gridColor, activeLayerId, theme,
             isTransparent, canvasSolidColor, isCanvasGradientEnabled, canvasGradient,
-            isBorderVisible, borderColor, canvasSize
+            isBorderVisible, borderColor, canvasSize, activeTool
         } = this.controller.model.getState();
 
         this.setCheckerboardBackground(canvas, theme);
@@ -72,14 +70,25 @@ export class UpdateCanvasStateCommand implements ICommand {
             this.drawGrid(canvas, gridSize, gridColor);
         }
 
-        const allUserObjects = canvas.getObjects().filter(o => !o.isGridLine && !o.isArtboard);
-        const isActiveToolSelect = this.controller.model.getState().activeTool === 'select';
+        const allUserObjects = canvas.getObjects().filter(o => !o.isGridLine && !o.isArtboard && !o.isPreviewObject && !o.isPenHandle);
 
         allUserObjects.forEach(obj => {
             const layer = layers.find(l => l.id === obj.layerId);
             if (layer) {
-                const isSelectable = isActiveToolSelect && (!layer.isLocked || layer.id === activeLayerId);
-                const isEvented = !layer.isLocked || layer.id === activeLayerId;
+                let isSelectable = false;
+                let isEvented = false;
+
+                if (activeTool === 'select') {
+                    isSelectable = (!layer.isLocked || layer.id === activeLayerId);
+                    isEvented = (!layer.isLocked || layer.id === activeLayerId);
+                } else if (activeTool === 'pen') {
+                    isSelectable = false;
+                    isEvented = !!obj.isPenObject;
+                } else {
+                    isSelectable = false;
+                    isEvented = (!layer.isLocked || layer.id === activeLayerId);
+                }
+
                 obj.set({
                     visible: layer.isVisible,
                     opacity: layer.opacity,
@@ -122,7 +131,7 @@ export class UpdateCanvasStateCommand implements ICommand {
 
         const finalArtboardRect = canvas.getObjects().find(o => o.isArtboard);
         const gridLines = canvas.getObjects().filter(o => o.isGridLine);
-        const userObjects = canvas.getObjects().filter(o => !o.isGridLine && !o.isArtboard);
+        const userObjects = canvas.getObjects().filter(o => !o.isGridLine && !o.isArtboard && !o.isPreviewObject && !o.isPenHandle);
         const newStack: fabric.Object[] = [];
 
         layers.slice().reverse().forEach(layer => {
@@ -130,7 +139,9 @@ export class UpdateCanvasStateCommand implements ICommand {
             newStack.push(...layerObjs);
         });
 
-        canvas._objects = [finalArtboardRect, ...gridLines, ...newStack].filter(Boolean) as fabric.Object[];
+        const penToolAids = canvas.getObjects().filter(o => o.isPenHandle);
+
+        canvas._objects = [finalArtboardRect, ...gridLines, ...newStack, ...penToolAids].filter(Boolean) as fabric.Object[];
 
         canvas.renderOnAddRemove = true;
         canvas.renderAll();
