@@ -54,6 +54,14 @@ export class AppController {
     }
 
     public init(canvasEl: HTMLCanvasElement) {
+        // Set default object properties to prevent centered scaling **NEW**
+        fabric.Object.prototype.set({
+            centeredScaling: false,
+            centeredRotation: true,
+            originX: 'left',
+            originY: 'top'
+        });
+
         fabric.Object.prototype.toObject = (function (toObject) {
             return function (this: fabric.Object, propertiesToInclude) {
                 propertiesToInclude = (propertiesToInclude || []).concat([

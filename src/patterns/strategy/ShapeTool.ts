@@ -15,17 +15,19 @@ export abstract class ShapeTool extends Tool {
 
     public onMouseDown(o: fabric.IEvent<MouseEvent>): void {
         const pointerObj = this.canvas.getPointer(o.e);
-        const pointer = this.controller.snapPointToGrid(new fabric.Point(pointerObj.x, pointerObj.y));
+        const pointer = new fabric.Point(pointerObj.x, pointerObj.y);
 
         this.state.isDrawing = true;
         this.state.origin = pointer.clone();
 
+        // Create shape without snapping initially
         const newShape = this.factory.create(this.shapeType, pointer, this.controller.model.getState());
         this.state.shape = newShape;
 
         newShape.set({ evented: true });
         this.controller.executeCommandWithoutHistory(ApplyFillCommand, newShape);
         this.canvas.add(newShape);
+
     }
 
     protected _updateShapeSize(o: fabric.IEvent<MouseEvent>): void {
@@ -67,43 +69,27 @@ export abstract class ShapeTool extends Tool {
             });
         }
 
-        this.canvas.renderAll();
+    }
+
+    public onMouseMove(o: fabric.IEvent<MouseEvent>): void {
+        this._updateShapeSize(o);
     }
 
     public onMouseUp(o: fabric.IEvent<MouseEvent>): void {
         if (!this.state.isDrawing || !this.state.shape) return;
         this.state.isDrawing = false;
         const shape = this.state.shape;
+
         const hasSize = (shape.width! > 2 && shape.height! > 2) || ((shape as any).radius && (shape as any).radius > 1) || (shape.type === 'line' && (shape.width! > 2 || shape.height! > 2));
 
         if (!hasSize) {
             this.canvas.remove(shape);
         } else {
-            const snap = (value: number) => this.controller.snapValueToGrid(value);
-
-            if (this.controller.model.getState().isGridVisible) {
-                switch (shape.type) {
-                    case 'rect':
-                    case 'triangle':
-                        shape.set({
-                            width: snap(shape.width!),
-                            height: snap(shape.height!),
-                        });
-                        break;
-                    case 'ellipse':
-                        const ellipse = shape as fabric.Ellipse;
-                        ellipse.set({
-                            rx: snap(ellipse.rx!),
-                            ry: snap(ellipse.ry!),
-                        });
-                        break;
-                }
-                shape.set({
-                    left: snap(shape.left!),
-                    top: snap(shape.top!),
-                });
+            // Apply grid snapping on release
+            const { isGridVisible } = this.controller.model.getState();
+            if (isGridVisible) {
+                this.applyGridSnapping(shape);
             }
-
 
             shape.set({ selectable: false, evented: true });
             shape.setCoords();
@@ -113,5 +99,44 @@ export abstract class ShapeTool extends Tool {
             this.controller.saveStateToHistory();
         }
         this.state.shape = null;
+    }
+
+    private applyGridSnapping(shape: fabric.Object): void {
+        const snap = (value: number) => this.controller.snapValueToGrid(value);
+
+        // Get current bounds
+        const bounds = shape.getBoundingRect(true);
+
+        // Snap all edges
+        const snappedLeft = snap(bounds.left);
+        const snappedTop = snap(bounds.top);
+        const snappedRight = snap(bounds.left + bounds.width);
+        const snappedBottom = snap(bounds.top + bounds.height);
+
+        // Calculate new dimensions
+        const snappedWidth = snappedRight - snappedLeft;
+        const snappedHeight = snappedBottom - snappedTop;
+
+        // Apply snapped values based on shape type
+        switch (shape.type) {
+            case 'rect':
+            case 'triangle':
+                shape.set({
+                    left: snappedLeft,
+                    top: snappedTop,
+                    width: snappedWidth,
+                    height: snappedHeight
+                });
+                break;
+            case 'ellipse':
+                const ellipse = shape as fabric.Ellipse;
+                ellipse.set({
+                    left: snappedLeft + snappedWidth / 2,
+                    top: snappedTop + snappedHeight / 2,
+                    rx: snappedWidth / 2,
+                    ry: snappedHeight / 2
+                });
+                break;
+        }
     }
 }

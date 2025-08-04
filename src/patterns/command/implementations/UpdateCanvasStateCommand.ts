@@ -2,7 +2,6 @@ import { ICommand } from "../ICommand";
 import { AppController } from "../../../core/AppController";
 import { fabric } from "fabric";
 import { Theme } from "../../../types/types";
-import { PenTool } from "../../strategy/implementations";
 
 export class UpdateCanvasStateCommand implements ICommand {
     private controller: AppController;
@@ -131,7 +130,8 @@ export class UpdateCanvasStateCommand implements ICommand {
 
         const finalArtboardRect = canvas.getObjects().find(o => o.isArtboard);
         const gridLines = canvas.getObjects().filter(o => o.isGridLine);
-        const userObjects = canvas.getObjects().filter(o => !o.isGridLine && !o.isArtboard && !o.isPreviewObject && !o.isPenHandle);
+        const userObjects = canvas.getObjects().filter(o => !o.isGridLine && !o.isArtboard && !o.isPreviewObject && !o.isPenHandle && !o.isGhostPreview);
+
         const newStack: fabric.Object[] = [];
 
         layers.slice().reverse().forEach(layer => {
@@ -141,6 +141,7 @@ export class UpdateCanvasStateCommand implements ICommand {
 
         const penToolAids = canvas.getObjects().filter(o => o.isPenHandle);
 
+        // Include ghost objects in the stack but render them below user objects
         canvas._objects = [finalArtboardRect, ...gridLines, ...newStack, ...penToolAids].filter(Boolean) as fabric.Object[];
 
         canvas.renderOnAddRemove = true;

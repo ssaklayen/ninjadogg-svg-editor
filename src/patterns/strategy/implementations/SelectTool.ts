@@ -10,6 +10,17 @@ export class SelectTool extends Tool {
     private isRotating: boolean = false;
     private rotationStartAngle: number = 0;
 
+    // New properties for snap-on-release behavior
+    private isDragging: boolean = false;
+    private originalTransform: {
+        left: number;
+        top: number;
+        scaleX: number;
+        scaleY: number;
+        angle: number;
+    } | null = null;
+
+
     constructor(controller: AppController) {
         super(controller);
     }
@@ -73,25 +84,76 @@ export class SelectTool extends Tool {
                 this.isRotating = true;
                 this.rotationStartAngle = target.angle || 0;
             }
+
+            // Store original transform for snap-on-release
+            this.isDragging = true;
+            this.originalTransform = {
+                left: target.left || 0,
+                top: target.top || 0,
+                scaleX: target.scaleX || 1,
+                scaleY: target.scaleY || 1,
+                angle: target.angle || 0
+            };
         }
     };
 
     public onMouseUp = (o: fabric.IEvent): void => {
         this.isRotating = false;
+
+        if (this.isDragging && o.target) {
+            this.isDragging = false;
+
+            // Apply grid snapping on release
+            const { isGridVisible } = this.controller.model.getState();
+            if (isGridVisible) {
+                this.applySnapOnRelease(o.target);
+            }
+
+            this.originalTransform = null;
+        }
     };
+
+    private applySnapOnRelease(target: fabric.Object): void {
+        if (target.type === 'activeSelection') {
+            const activeSelection = target as fabric.ActiveSelection;
+            activeSelection.getObjects().forEach(obj => this.snapSingleObject(obj));
+        } else {
+            this.snapSingleObject(target);
+        }
+
+        target.setCoords();
+        this.canvas.requestRenderAll();
+    }
+
+    private snapSingleObject(obj: fabric.Object): void {
+        const { gridSize } = this.controller.model.getState();
+        const snapValue = (value: number) => Math.round(value / gridSize) * gridSize;
+
+        if (obj.isPenObject) {
+            this.snapPenObjectBounds(obj as fabric.Path, snapValue);
+        } else {
+            // Snap regular objects
+            const bounds = obj.getBoundingRect(true);
+            const snappedLeft = snapValue(bounds.left);
+            const snappedTop = snapValue(bounds.top);
+
+            // Calculate offset from bounding rect to object position
+            const offsetX = (obj.left || 0) - bounds.left;
+            const offsetY = (obj.top || 0) - bounds.top;
+
+            obj.set({
+                left: snappedLeft + offsetX,
+                top: snappedTop + offsetY
+            });
+        }
+    }
 
     private onObjectMoving = (o: fabric.IEvent): void => {
         const target = o.target;
         if (!target) return;
 
-        const { isGridVisible } = this.controller.model.getState();
-        if (isGridVisible) {
-            target.set({
-                left: this.controller.snapValueToGrid(target.left!),
-                top: this.controller.snapValueToGrid(target.top!)
-            });
-        }
     };
+
 
     private onObjectScaling = (o: fabric.IEvent): void => {
         const target = o.target;
@@ -100,13 +162,13 @@ export class SelectTool extends Tool {
             const newFontSize = (iText.fontSize ?? 40) * (Math.abs(iText.scaleX ?? 1));
             this.controller.model.setState({ liveFontSize: Math.round(newFontSize) });
         }
+
     };
 
     private onObjectRotating = (o: fabric.IEvent): void => {
         const target = o.target;
         if (!target || !this.isRotating) return;
 
-        // Handle all objects the same way - no special case for pen objects
         target.set({
             angle: target.angle,
             dirty: true
@@ -121,7 +183,6 @@ export class SelectTool extends Tool {
         const target = o.target;
         if (!target) return;
 
-        // Just ensure coordinates are properly set for all objects
         target.setCoords();
         this.canvas.requestRenderAll();
     }
@@ -146,15 +207,17 @@ export class SelectTool extends Tool {
             : [target];
 
         for (const obj of objectsToProcess) {
+            this.ensureProperTransformSettings(obj);
+
             if (obj.isPenObject && obj.anchorData) {
                 await this.processPenObjectTransformation(obj as fabric.Path);
-            }
-
-            if (obj.type === 'i-text') {
-                const iText = obj as fabric.IText;
-                const scaleFactor = Math.abs(iText.scaleX ?? 1);
-                iText.fontSize = (iText.fontSize ?? 40) * scaleFactor;
-                iText.set({ scaleX: 1, scaleY: 1 });
+            } else {
+                if (obj.type === 'i-text') {
+                    const iText = obj as fabric.IText;
+                    const scaleFactor = Math.abs(iText.scaleX ?? 1);
+                    iText.fontSize = (iText.fontSize ?? 40) * scaleFactor;
+                    iText.set({ scaleX: 1, scaleY: 1 });
+                }
             }
         }
 
@@ -165,6 +228,69 @@ export class SelectTool extends Tool {
         this.controller.saveStateToHistory();
         this.canvas.renderAll();
     };
+
+    private ensureProperTransformSettings(obj: fabric.Object): void {
+        obj.set({
+            centeredScaling: false,
+            centeredRotation: true,
+            originX: 'left',
+            originY: 'top'
+        });
+    }
+
+    private snapPenObjectBounds(penObj: fabric.Path, snapValue: (value: number) => number): void {
+        // Store the current center point before any transformations
+        const center = penObj.getCenterPoint();
+        const currentAngle = penObj.angle || 0;
+
+        // Temporarily reset angle to get unrotated bounds
+        penObj.set({ angle: 0 });
+        const unrotatedBounds = penObj.getBoundingRect(true);
+
+        // Calculate snapped position for unrotated bounds
+        const snappedLeft = snapValue(unrotatedBounds.left);
+        const snappedTop = snapValue(unrotatedBounds.top);
+        const snappedRight = snapValue(unrotatedBounds.left + unrotatedBounds.width);
+        const snappedBottom = snapValue(unrotatedBounds.top + unrotatedBounds.height);
+
+        // Calculate new dimensions
+        const targetWidth = snappedRight - snappedLeft;
+        const targetHeight = snappedBottom - snappedTop;
+
+        // Calculate scale factors
+        const scaleX = targetWidth / unrotatedBounds.width;
+        const scaleY = targetHeight / unrotatedBounds.height;
+
+        // Apply scaling
+        penObj.set({
+            scaleX: (penObj.scaleX || 1) * scaleX,
+            scaleY: (penObj.scaleY || 1) * scaleY
+        });
+
+        // Restore angle
+        penObj.set({ angle: currentAngle });
+
+        // Calculate new center after scaling
+        const newCenter = penObj.getCenterPoint();
+
+        // Adjust position to maintain center point if object is rotated
+        if (currentAngle !== 0) {
+            const deltaX = center.x - newCenter.x;
+            const deltaY = center.y - newCenter.y;
+            penObj.set({
+                left: (penObj.left || 0) + deltaX,
+                top: (penObj.top || 0) + deltaY
+            });
+        } else {
+            // For unrotated objects, snap the position directly
+            penObj.set({
+                left: snappedLeft,
+                top: snappedTop
+            });
+        }
+
+        penObj.setCoords();
+    }
 
     private async processPenObjectTransformation(penObject: fabric.Path): Promise<void> {
         const scaleX = penObject.scaleX || 1;
@@ -228,5 +354,4 @@ export class SelectTool extends Tool {
         delete penObject._originalPathOffset;
         penObject.setCoords();
     }
-
 }

@@ -105,7 +105,7 @@ export class PenTool extends Tool {
         const pointer = this.canvas.getPointer(o.e);
         const fabricPoint = new fabric.Point(pointer.x, pointer.y);
         const isModifierDown = o.e.ctrlKey || o.e.metaKey;
-        const isCtrlShiftDown = (o.e.ctrlKey || o.e.metaKey) && o.e.shiftKey; // Changed from isCtrlAltDown
+        const isCtrlShiftDown = (o.e.ctrlKey || o.e.metaKey) && o.e.shiftKey;
 
         this.hasMouseMoved = false;
         this.mouseDownPoint = fabricPoint;
@@ -136,13 +136,16 @@ export class PenTool extends Tool {
 
             // Check if clicking on the path to add a vertex
             if (this.editingObject.containsPoint(fabricPoint)) {
-                this.addAnchorPoint(fabricPoint);
+                // Snap the new point to grid intersection
+                const snappedPointer = this.controller.snapPointToGrid(fabricPoint);
+                this.addAnchorPoint(snappedPointer);
                 return;
             }
         }
 
         // --- Creation Mode Logic ---
         if (this.mode === 'CREATING') {
+            // Always snap to grid intersection for pen vertices
             const snappedPointer = this.controller.snapPointToGrid(fabricPoint);
 
             // Check if closing the path
@@ -161,7 +164,6 @@ export class PenTool extends Tool {
             this.currentPathData.push(newPoint);
             this.isDragging = true;
             this.updateLivePath();
-
         }
     }
 
@@ -214,6 +216,21 @@ export class PenTool extends Tool {
         }
 
         if (this.mode === 'EDITING' && this.isDragging && this.editingObject && this.editingAnchorData) {
+            // Apply grid snapping to anchors on release
+            if (this.draggedHandle && this.draggedHandle.handle === 'anchor') {
+                const { isGridVisible } = this.controller.model.getState();
+                if (isGridVisible) {
+                    const pointData = this.editingAnchorData[this.draggedHandle.pointIndex];
+                    const snappedAnchor = this.controller.snapPointToGrid(pointData.anchor);
+                    const delta = snappedAnchor.subtract(pointData.anchor);
+
+                    // Move anchor and its handles
+                    pointData.anchor.setFromPoint(snappedAnchor);
+                    pointData.handle1.addEquals(delta);
+                    pointData.handle2.addEquals(delta);
+                }
+            }
+
             // Clean up live preview
             this.cleanupLivePreview();
 
@@ -530,7 +547,7 @@ export class PenTool extends Tool {
         this.renderEditHandles();
     }
 
-    // Add anchor point with smooth handles
+    // Add anchor point with smooth handles and grid snapping
     private addAnchorPoint(clickPoint: fabric.Point): void {
         if (!this.editingObject || !this.editingAnchorData) return;
 
@@ -560,14 +577,17 @@ export class PenTool extends Tool {
         }
 
         if (bestMatch.distance < 20) {
+            // Snap the new anchor point to grid intersection
+            const snappedPoint = this.controller.snapPointToGrid(bestMatch.point);
+
             let newAnchor: IAnchorPoint;
 
             if (this.isShiftPressed) {
                 // Create corner point - handles collapsed to anchor
                 newAnchor = {
-                    anchor: bestMatch.point,
-                    handle1: new fabric.Point(bestMatch.point.x, bestMatch.point.y),
-                    handle2: new fabric.Point(bestMatch.point.x, bestMatch.point.y)
+                    anchor: snappedPoint,
+                    handle1: new fabric.Point(snappedPoint.x, snappedPoint.y),
+                    handle2: new fabric.Point(snappedPoint.x, snappedPoint.y)
                 };
             } else {
                 // Create smooth point with handles based on bezier tangent
@@ -585,14 +605,14 @@ export class PenTool extends Tool {
                 );
 
                 newAnchor = {
-                    anchor: bestMatch.point,
+                    anchor: snappedPoint,
                     handle1: new fabric.Point(
-                        bestMatch.point.x - tangent.x * handle1Length,
-                        bestMatch.point.y - tangent.y * handle1Length
+                        snappedPoint.x - tangent.x * handle1Length,
+                        snappedPoint.y - tangent.y * handle1Length
                     ),
                     handle2: new fabric.Point(
-                        bestMatch.point.x + tangent.x * handle1Length,
-                        bestMatch.point.y + tangent.y * handle1Length
+                        snappedPoint.x + tangent.x * handle1Length,
+                        snappedPoint.y + tangent.y * handle1Length
                     )
                 };
             }
@@ -605,7 +625,6 @@ export class PenTool extends Tool {
                 }
             });
         }
-
     }
 
     // Find closest point on a bezier curve segment
@@ -1215,7 +1234,7 @@ export class PenTool extends Tool {
         }
     }
 
-    // Enhanced updateEditingHandle method with vertex type support
+    // Enhanced updateEditingHandle method with vertex type support and snap-on-release
     private updateEditingHandle(pointer: fabric.Point, isShiftDown: boolean): void {
         if (!this.draggedHandle || !this.editingAnchorData) return;
 
@@ -1226,7 +1245,7 @@ export class PenTool extends Tool {
         const vertexType = pointData.vertexType || VertexType.SMOOTH;
 
         if (handle === 'anchor') {
-            // Moving the anchor point - move both handles with it
+            // Moving the anchor point - don't snap during drag, wait for release
             const delta = pointer.subtract(pointData.anchor);
             pointData.anchor.setFromPoint(pointer);
             pointData.handle1.addEquals(delta);
@@ -1425,5 +1444,4 @@ export class PenTool extends Tool {
             }
         }
     }
-
 }

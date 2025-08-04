@@ -18,6 +18,7 @@ declare module 'fabric' {
             isLayerBackground?: boolean;
             isPreviewObject?: boolean;
             customPathData?: any;
+            isGhostPreview?: boolean; // New property for snap preview
 
             isFillEnabled?: boolean;
             solidFill?: string;
