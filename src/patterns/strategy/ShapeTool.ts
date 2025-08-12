@@ -24,10 +24,18 @@ export abstract class ShapeTool extends Tool {
         const newShape = this.factory.create(this.shapeType, pointer, this.controller.model.getState());
         this.state.shape = newShape;
 
-        newShape.set({ evented: true });
-        this.controller.executeCommandWithoutHistory(ApplyFillCommand, newShape);
-        this.canvas.add(newShape);
+        // Override visual properties for live preview
+        // Use transparent fill and visible stroke during creation
+        newShape.set({
+            evented: true,
+            fill: 'rgba(0, 0, 0, 0)', // Transparent fill during creation
+            stroke: '#000000', // Always black stroke during creation for visibility
+            strokeWidth: 1, // Consistent stroke width during creation
+            opacity: 1 // Full opacity
+        });
 
+        this.canvas.add(newShape);
+        // Don't call ApplyFillCommand here - wait until mouse up
     }
 
     protected _updateShapeSize(o: fabric.IEvent<MouseEvent>): void {
@@ -69,6 +77,7 @@ export abstract class ShapeTool extends Tool {
             });
         }
 
+        this.canvas.renderAll();
     }
 
     public onMouseMove(o: fabric.IEvent<MouseEvent>): void {
@@ -91,9 +100,27 @@ export abstract class ShapeTool extends Tool {
                 this.applyGridSnapping(shape);
             }
 
-            shape.set({ selectable: false, evented: true });
+            // Now apply the proper visual properties from state
+            const state = this.controller.model.getState();
+
+            // Set proper fill based on state
+            if (shape.isFillEnabled) {
+                shape.set('fill', shape.solidFill || state.defaultSolidFill);
+            } else {
+                shape.set('fill', 'transparent');
+            }
+
+            // Set proper stroke based on state
+            shape.set({
+                stroke: shape.isStrokeEnabled ? (shape.solidStroke || state.defaultShapeStroke) : 'transparent',
+                strokeWidth: state.defaultShapeStrokeWidth,
+                selectable: false,
+                evented: true
+            });
+
             shape.setCoords();
 
+            // Apply fill styles (gradients if enabled)
             this.controller.executeCommandWithoutHistory(ApplyFillCommand, shape, true);
             this.controller.executeCommandWithoutHistory(UpdateCanvasStateCommand);
             this.controller.saveStateToHistory();
