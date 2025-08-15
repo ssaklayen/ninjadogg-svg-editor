@@ -54,12 +54,16 @@ export class AppController {
     }
 
     public init(canvasEl: HTMLCanvasElement) {
-        // Set default object properties to prevent centered scaling **NEW**
+        // CRITICAL FIX: Set proper default object properties
         fabric.Object.prototype.set({
             centeredScaling: false,
             centeredRotation: true,
             originX: 'left',
-            originY: 'top'
+            originY: 'top',
+            strokeUniform: true,
+            noScaleCache: false,
+            objectCaching: true,
+            statefullCache: true
         });
 
         fabric.Object.prototype.toObject = (function (toObject) {
@@ -78,6 +82,9 @@ export class AppController {
             preserveObjectStacking: true,
             backgroundVpt: false,
             selectionKey: 'ctrlKey',
+            // Disable centered transforms at canvas level
+            centeredScaling: false,
+            centeredRotation: true
         });
 
         this.tools = {
@@ -140,6 +147,15 @@ export class AppController {
 
         const selectionHandler = () => {
             const activeObject = this.fabricCanvas?.getActiveObject() || null;
+            // Ensure proper transform settings when selection changes
+            if (activeObject) {
+                activeObject.set({
+                    centeredScaling: false,
+                    centeredRotation: true,
+                    originX: 'left',
+                    originY: 'top'
+                });
+            }
             this.updateSelectionState(activeObject);
         };
 
@@ -169,7 +185,20 @@ export class AppController {
         if (vpt) {
             vpt[4] += e.clientX - this.lastPosX;
             vpt[5] += e.clientY - this.lastPosY;
-            this.fabricCanvas.requestRenderAll();
+
+            // Check if grid is visible and redraw it
+            const { isGridVisible } = this.model.getState();
+            if (isGridVisible) {
+                // Remove old grid lines
+                const oldGridLines = this.fabricCanvas.getObjects().filter(o => o.isGridLine);
+                oldGridLines.forEach(line => this.fabricCanvas!.remove(line));
+
+                // Redraw grid at new viewport position
+                this.executeCommandWithoutHistory(UpdateCanvasStateCommand);
+            } else {
+                this.fabricCanvas.requestRenderAll();
+            }
+
             this.lastPosX = e.clientX;
             this.lastPosY = e.clientY;
         }
@@ -252,7 +281,7 @@ export class AppController {
 
         // Check if pen tool is in edit mode before updating canvas state
         const penTool = this.getTool('pen') as PenTool;
-        const isInPenEditMode = penTool && penTool.isInEditMode(); // We'll need to add this method
+        const isInPenEditMode = penTool && penTool.isInEditMode();
 
         if (!isInPenEditMode) {
             this.executeCommandWithoutHistory(UpdateCanvasStateCommand);
@@ -261,7 +290,6 @@ export class AppController {
             penTool.refreshEditHandles();
         }
     };
-
 
     private handleMouseDblClick = (o: fabric.IEvent<MouseEvent>) => {
         const target = o.target;
@@ -337,6 +365,18 @@ export class AppController {
 
         this.fabricCanvas.loadFromJSON(state.canvas, () => {
             if (!this.fabricCanvas) return;
+
+            // Ensure all objects have proper transform settings
+            this.fabricCanvas.getObjects().forEach(obj => {
+                if (!obj.isGridLine && !obj.isArtboard) {
+                    obj.set({
+                        centeredScaling: false,
+                        centeredRotation: true,
+                        originX: 'left',
+                        originY: 'top'
+                    });
+                }
+            });
 
             const objectsToSelect = this.fabricCanvas.getObjects().filter(obj => selectedObjectIds.includes(obj.id!));
             this._restoreSelection(objectsToSelect);

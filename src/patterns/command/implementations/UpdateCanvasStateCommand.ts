@@ -24,6 +24,13 @@ export class UpdateCanvasStateCommand implements ICommand {
             isBorderVisible, borderColor, canvasSize, activeTool
         } = this.controller.model.getState();
 
+        // ADD THIS BLOCK - Check if grid visibility changed and update bounding box behavior
+        const selectTool = this.controller.getTool('select');
+        if (selectTool && activeTool === 'select') {
+            // Cast to any to access the private method (or make it public in SelectTool)
+            (selectTool as any).updateBoundingBoxBehavior?.();
+        }
+
         this.setCheckerboardBackground(canvas, theme);
 
         const oldArtboard = canvas.getObjects().find(o => o.isArtboard);
@@ -141,13 +148,13 @@ export class UpdateCanvasStateCommand implements ICommand {
 
         const penToolAids = canvas.getObjects().filter(o => o.isPenHandle);
 
-        // Include ghost objects in the stack but render them below user objects
         canvas._objects = [finalArtboardRect, ...gridLines, ...newStack, ...penToolAids].filter(Boolean) as fabric.Object[];
 
         canvas.renderOnAddRemove = true;
         canvas.renderAll();
     }
 
+    // Rest of the methods remain the same
     private setCheckerboardBackground(canvas: fabric.Canvas, theme: Theme): void {
         const isDark = theme === 'dark';
         const targetPattern = isDark ? UpdateCanvasStateCommand.darkCheckerboardPattern : UpdateCanvasStateCommand.lightCheckerboardPattern;

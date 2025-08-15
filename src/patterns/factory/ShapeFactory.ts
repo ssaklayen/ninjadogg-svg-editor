@@ -21,6 +21,15 @@ export class ShapeFactory {
 
         shape.id = uniqueId();
         shape.layerId = activeLayerId || undefined;
+
+        // CRITICAL: Set proper transform origin for all shapes
+        shape.set({
+            centeredScaling: false,
+            centeredRotation: true,
+            originX: 'left',
+            originY: 'top',
+            strokeUniform: true
+        });
     }
 
     public createRectangle(pointer: fabric.Point, state: ICanvasState): fabric.Rect {
@@ -29,6 +38,11 @@ export class ShapeFactory {
             top: pointer.y,
             width: 0,
             height: 0,
+            centeredScaling: false,
+            centeredRotation: true,
+            originX: 'left',
+            originY: 'top',
+            strokeUniform: true
         });
         this._applyDefaults(rect, state);
         return rect;
@@ -40,6 +54,11 @@ export class ShapeFactory {
             top: pointer.y,
             rx: 0,
             ry: 0,
+            centeredScaling: false,
+            centeredRotation: true,
+            originX: 'left',
+            originY: 'top',
+            strokeUniform: true
         });
         this._applyDefaults(ellipse, state);
         return ellipse;
@@ -51,13 +70,24 @@ export class ShapeFactory {
             top: pointer.y,
             width: 0,
             height: 0,
+            centeredScaling: false,
+            centeredRotation: true,
+            originX: 'left',
+            originY: 'top',
+            strokeUniform: true
         });
         this._applyDefaults(triangle, state);
         return triangle;
     }
 
     public createLine(pointer: fabric.Point, state: ICanvasState): fabric.Line {
-        const line = new fabric.Line([pointer.x, pointer.y, pointer.x, pointer.y]);
+        const line = new fabric.Line([pointer.x, pointer.y, pointer.x, pointer.y], {
+            centeredScaling: false,
+            centeredRotation: true,
+            originX: 'left',
+            originY: 'top',
+            strokeUniform: true
+        });
 
         line.isStrokeEnabled = state.isDefaultStrokeEnabled;
         line.stroke = state.isDefaultStrokeEnabled ? state.defaultShapeStroke : 'transparent';
@@ -69,13 +99,26 @@ export class ShapeFactory {
     }
 
     public createPolygon(points: fabric.Point[], state: ICanvasState): fabric.Polygon {
-        const polygon = new fabric.Polygon(points, {});
+        const polygon = new fabric.Polygon(points, {
+            centeredScaling: false,
+            centeredRotation: true,
+            originX: 'left',
+            originY: 'top',
+            strokeUniform: true
+        });
         this._applyDefaults(polygon, state);
         return polygon;
     }
 
     public createPolyline(points: fabric.Point[], state: ICanvasState): fabric.Polyline {
-        const polyline = new fabric.Polyline(points, { fill: '' });
+        const polyline = new fabric.Polyline(points, {
+            fill: '',
+            centeredScaling: false,
+            centeredRotation: true,
+            originX: 'left',
+            originY: 'top',
+            strokeUniform: true
+        });
         this._applyDefaults(polyline, state);
         polyline.isFillEnabled = false;
         polyline.solidFill = '';

@@ -1,13 +1,12 @@
-// The abstract base class for all shape-drawing tool strategies.
 import { fabric } from 'fabric';
 import { Tool } from './Tool';
 import { ShapeType } from '../factory';
 import { ApplyFillCommand, UpdateCanvasStateCommand } from '../command/implementations';
 import { AppController } from '../../core/AppController';
 
-// PATTERN: Strategy (Abstract) - Defines the common interface for tools that draw shapes.
 export abstract class ShapeTool extends Tool {
     protected abstract shapeType: ShapeType;
+    private livePreviewShape: fabric.Object | null = null;
 
     constructor(controller: AppController) {
         super(controller);
@@ -24,28 +23,67 @@ export abstract class ShapeTool extends Tool {
         const newShape = this.factory.create(this.shapeType, pointer, this.controller.model.getState());
         this.state.shape = newShape;
 
-        // Override visual properties for live preview
-        // Use transparent fill and visible stroke during creation
-        newShape.set({
-            evented: true,
-            fill: 'rgba(0, 0, 0, 0)', // Transparent fill during creation
-            stroke: '#000000', // Always black stroke during creation for visibility
-            strokeWidth: 1, // Consistent stroke width during creation
-            opacity: 1 // Full opacity
-        });
+        // Create a separate live preview shape with visible properties
+        this.createLivePreview(pointer);
+    }
 
-        this.canvas.add(newShape);
-        // Don't call ApplyFillCommand here - wait until mouse up
+    private createLivePreview(origin: fabric.Point): void {
+        const state = this.controller.model.getState();
+
+        // Create a preview shape with explicit visible properties
+        if (this.shapeType === 'ellipse') {
+            this.livePreviewShape = new fabric.Ellipse({
+                left: origin.x,
+                top: origin.y,
+                rx: 0,
+                ry: 0,
+                fill: 'rgba(200, 200, 200, 0.3)',
+                stroke: state.defaultShapeStroke || '#000000',
+                strokeWidth: state.defaultShapeStrokeWidth || 1,
+                selectable: false,
+                evented: false,
+                excludeFromExport: true
+            });
+        } else if (this.shapeType === 'line') {
+            this.livePreviewShape = new fabric.Line(
+                [origin.x, origin.y, origin.x, origin.y],
+                {
+                    stroke: state.defaultShapeStroke || '#000000',
+                    strokeWidth: state.defaultShapeStrokeWidth || 1,
+                    selectable: false,
+                    evented: false,
+                    excludeFromExport: true
+                }
+            );
+        } else { // rect, triangle
+            const ShapeClass = this.shapeType === 'rect' ? fabric.Rect : fabric.Triangle;
+            this.livePreviewShape = new ShapeClass({
+                left: origin.x,
+                top: origin.y,
+                width: 0,
+                height: 0,
+                fill: 'rgba(200, 200, 200, 0.3)',
+                stroke: state.defaultShapeStroke || '#000000',
+                strokeWidth: state.defaultShapeStrokeWidth || 1,
+                selectable: false,
+                evented: false,
+                excludeFromExport: true
+            });
+        }
+
+        // Add the preview shape to canvas
+        this.canvas.add(this.livePreviewShape);
+        this.canvas.renderAll();
     }
 
     protected _updateShapeSize(o: fabric.IEvent<MouseEvent>): void {
-        if (!this.state.isDrawing || !this.state.shape || !this.state.origin) return;
+        if (!this.state.isDrawing || !this.state.shape || !this.state.origin || !this.livePreviewShape) return;
 
         const pointer = this.canvas.getPointer(o.e);
         const { x, y } = this.state.origin;
 
-        if (this.state.shape.type === 'ellipse') {
-            const ellipse = this.state.shape as fabric.Ellipse;
+        if (this.livePreviewShape.type === 'ellipse') {
+            const ellipse = this.livePreviewShape as fabric.Ellipse;
             let rx = Math.abs(x - pointer.x) / 2;
             let ry = Math.abs(y - pointer.y) / 2;
 
@@ -59,6 +97,17 @@ export abstract class ShapeTool extends Tool {
                 rx: rx,
                 ry: ry
             });
+
+            // Update the actual shape data
+            (this.state.shape as fabric.Ellipse).set({
+                left: ellipse.left,
+                top: ellipse.top,
+                rx: rx,
+                ry: ry
+            });
+        } else if (this.livePreviewShape.type === 'line') {
+            (this.livePreviewShape as fabric.Line).set({ x2: pointer.x, y2: pointer.y });
+            (this.state.shape as fabric.Line).set({ x2: pointer.x, y2: pointer.y });
         } else { // For Rect and Triangle
             let width = Math.abs(pointer.x - x);
             let height = Math.abs(pointer.y - y);
@@ -69,11 +118,19 @@ export abstract class ShapeTool extends Tool {
                 height = side;
             }
 
-            this.state.shape.set({
+            this.livePreviewShape.set({
                 width: width,
                 height: height,
                 left: pointer.x > x ? x : x - width,
                 top: pointer.y > y ? y : y - height
+            });
+
+            // Update the actual shape data
+            this.state.shape.set({
+                width: width,
+                height: height,
+                left: this.livePreviewShape.left,
+                top: this.livePreviewShape.top
             });
         }
 
@@ -87,44 +144,61 @@ export abstract class ShapeTool extends Tool {
     public onMouseUp(o: fabric.IEvent<MouseEvent>): void {
         if (!this.state.isDrawing || !this.state.shape) return;
         this.state.isDrawing = false;
+
+        // Remove the live preview
+        if (this.livePreviewShape) {
+            this.canvas.remove(this.livePreviewShape);
+            this.livePreviewShape = null;
+        }
+
         const shape = this.state.shape;
 
-        const hasSize = (shape.width! > 2 && shape.height! > 2) || ((shape as any).radius && (shape as any).radius > 1) || (shape.type === 'line' && (shape.width! > 2 || shape.height! > 2));
+        const hasSize = (shape.width! > 2 && shape.height! > 2) ||
+            ((shape as any).radius && (shape as any).radius > 1) ||
+            (shape.type === 'line' && (shape.width! > 2 || shape.height! > 2)) ||
+            (shape.type === 'ellipse' && ((shape as fabric.Ellipse).rx! > 1 || (shape as fabric.Ellipse).ry! > 1));
 
         if (!hasSize) {
-            this.canvas.remove(shape);
-        } else {
-            // Apply grid snapping on release
-            const { isGridVisible } = this.controller.model.getState();
-            if (isGridVisible) {
-                this.applyGridSnapping(shape);
-            }
-
-            // Now apply the proper visual properties from state
-            const state = this.controller.model.getState();
-
-            // Set proper fill based on state
-            if (shape.isFillEnabled) {
-                shape.set('fill', shape.solidFill || state.defaultSolidFill);
-            } else {
-                shape.set('fill', 'transparent');
-            }
-
-            // Set proper stroke based on state
-            shape.set({
-                stroke: shape.isStrokeEnabled ? (shape.solidStroke || state.defaultShapeStroke) : 'transparent',
-                strokeWidth: state.defaultShapeStrokeWidth,
-                selectable: false,
-                evented: true
-            });
-
-            shape.setCoords();
-
-            // Apply fill styles (gradients if enabled)
-            this.controller.executeCommandWithoutHistory(ApplyFillCommand, shape, true);
-            this.controller.executeCommandWithoutHistory(UpdateCanvasStateCommand);
-            this.controller.saveStateToHistory();
+            // Shape too small, don't add it
+            this.state.shape = null;
+            this.canvas.renderAll();
+            return;
         }
+
+        // Apply grid snapping on release
+        const { isGridVisible } = this.controller.model.getState();
+        if (isGridVisible) {
+            this.applyGridSnapping(shape);
+        }
+
+        // Now add the actual shape with proper properties
+        const state = this.controller.model.getState();
+
+        // Set proper fill based on state
+        if (shape.isFillEnabled) {
+            shape.set('fill', shape.solidFill || state.defaultSolidFill);
+        } else {
+            shape.set('fill', 'transparent');
+        }
+
+        // Set proper stroke based on state
+        shape.set({
+            stroke: shape.isStrokeEnabled ? (shape.solidStroke || state.defaultShapeStroke) : 'transparent',
+            strokeWidth: state.defaultShapeStrokeWidth,
+            selectable: false,
+            evented: true
+        });
+
+        shape.setCoords();
+
+        // Add the shape to canvas
+        this.canvas.add(shape);
+
+        // Apply fill styles (gradients if enabled)
+        this.controller.executeCommandWithoutHistory(ApplyFillCommand, shape, true);
+        this.controller.executeCommandWithoutHistory(UpdateCanvasStateCommand);
+        this.controller.saveStateToHistory();
+
         this.state.shape = null;
     }
 
@@ -164,6 +238,24 @@ export abstract class ShapeTool extends Tool {
                     ry: snappedHeight / 2
                 });
                 break;
+            case 'line':
+                const line = shape as fabric.Line;
+                line.set({
+                    x1: snappedLeft,
+                    y1: snappedTop,
+                    x2: snappedRight,
+                    y2: snappedBottom
+                });
+                break;
+        }
+    }
+
+    public deactivate(): void {
+        super.deactivate();
+        // Clean up any live preview on tool switch
+        if (this.livePreviewShape) {
+            this.canvas.remove(this.livePreviewShape);
+            this.livePreviewShape = null;
         }
     }
 }
