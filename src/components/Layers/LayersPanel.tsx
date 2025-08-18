@@ -83,11 +83,44 @@ const renderLayerPreview = async (
             return;
         }
 
+        // Check if objects are part of active selection
+        const activeObject = mainCanvas.getActiveObject();
+        const isActiveSelection = activeObject && activeObject.type === 'activeSelection';
+        const activeSelection = isActiveSelection ? activeObject as fabric.ActiveSelection : null;
+
         const clonePromises = layerObjects.map(obj => new Promise<fabric.Object>(resolve => {
-            obj.clone((cloned: fabric.Object) => {
-                cloned.set({ evented: false, selectable: false });
-                resolve(cloned);
-            });
+            // If object is part of active selection, we need to apply the group transform
+            if (activeSelection && activeSelection.contains(obj)) {
+                // Get the object's absolute position including group transform
+                const matrix = activeSelection.calcTransformMatrix();
+                const objMatrix = obj.calcTransformMatrix();
+
+                obj.clone((cloned: fabric.Object) => {
+                    // Apply the combined transform to the clone
+                    const point = fabric.util.transformPoint(
+                        new fabric.Point(obj.left || 0, obj.top || 0),
+                        activeSelection.calcTransformMatrix()
+                    );
+
+                    cloned.set({
+                        left: point.x,
+                        top: point.y,
+                        angle: (obj.angle || 0) + (activeSelection.angle || 0),
+                        scaleX: (obj.scaleX || 1) * (activeSelection.scaleX || 1),
+                        scaleY: (obj.scaleY || 1) * (activeSelection.scaleY || 1),
+                        evented: false,
+                        selectable: false
+                    });
+
+                    resolve(cloned);
+                });
+            } else {
+                // Normal cloning for non-selected objects
+                obj.clone((cloned: fabric.Object) => {
+                    cloned.set({ evented: false, selectable: false });
+                    resolve(cloned);
+                });
+            }
         }));
 
         Promise.all(clonePromises).then(clonedObjects => {
@@ -167,11 +200,24 @@ export const LayersPanel = ({ layers, activeLayerId, controller }: LayersPanelPr
 
         updateAllPreviews();
 
+        // Add these additional event listeners for group transformations
         mainCanvas.on('app:history:saved', debouncedUpdateAllPreviews);
+        mainCanvas.on('object:modified', debouncedUpdateAllPreviews);
+        mainCanvas.on('selection:updated', debouncedUpdateAllPreviews);
+        mainCanvas.on('selection:created', debouncedUpdateAllPreviews);
+        mainCanvas.on('object:moving', debouncedUpdateAllPreviews);
+        mainCanvas.on('object:scaling', debouncedUpdateAllPreviews);
+        mainCanvas.on('object:rotating', debouncedUpdateAllPreviews);
 
         return () => {
             if (mainCanvas) {
                 mainCanvas.off('app:history:saved', debouncedUpdateAllPreviews);
+                mainCanvas.off('object:modified', debouncedUpdateAllPreviews);
+                mainCanvas.off('selection:updated', debouncedUpdateAllPreviews);
+                mainCanvas.off('selection:created', debouncedUpdateAllPreviews);
+                mainCanvas.off('object:moving', debouncedUpdateAllPreviews);
+                mainCanvas.off('object:scaling', debouncedUpdateAllPreviews);
+                mainCanvas.off('object:rotating', debouncedUpdateAllPreviews);
             }
         };
     }, [controller.fabricCanvas, layers]);

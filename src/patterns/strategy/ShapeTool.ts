@@ -91,11 +91,15 @@ export abstract class ShapeTool extends Tool {
                 rx = ry = Math.max(rx, ry);
             }
 
+            // IMPORTANT: Use the minimum of x/pointer.x for left, y/pointer.y for top
+            // This ensures the ellipse is positioned correctly regardless of drag direction
             ellipse.set({
-                left: x < pointer.x ? x : x - rx * 2,
-                top: y < pointer.y ? y : y - ry * 2,
+                left: Math.min(x, pointer.x),
+                top: Math.min(y, pointer.y),
                 rx: rx,
-                ry: ry
+                ry: ry,
+                originX: 'left',
+                originY: 'top'
             });
 
             // Update the actual shape data
@@ -103,7 +107,9 @@ export abstract class ShapeTool extends Tool {
                 left: ellipse.left,
                 top: ellipse.top,
                 rx: rx,
-                ry: ry
+                ry: ry,
+                originX: 'left',
+                originY: 'top'
             });
         } else if (this.livePreviewShape.type === 'line') {
             (this.livePreviewShape as fabric.Line).set({ x2: pointer.x, y2: pointer.y });
@@ -203,16 +209,43 @@ export abstract class ShapeTool extends Tool {
     }
 
     private applyGridSnapping(shape: fabric.Object): void {
-        const snap = (value: number) => this.controller.snapValueToGrid(value);
+        const { gridSize } = this.controller.model.getState();
+
+        // Get viewport transform to understand where the grid actually is
+        const vpt = this.canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+        const zoom = vpt[0];
+        const panX = vpt[4];
+        const panY = vpt[5];
+
+        // Calculate where the visual grid starts (same as in drawGrid)
+        const viewPortLeft = -panX / zoom;
+        const viewPortTop = -panY / zoom;
+        const gridOffsetX = (Math.ceil(viewPortLeft / gridSize) * gridSize) - viewPortLeft;
+        const gridOffsetY = (Math.ceil(viewPortTop / gridSize) * gridSize) - viewPortTop;
+
+        // Viewport-aware snap function
+        const snap = (value: number, isVertical: boolean = false) => {
+            if (isVertical) {
+                // For vertical positions (Y axis)
+                const offset = value - viewPortTop;
+                const snappedOffset = Math.round((offset - gridOffsetY) / gridSize) * gridSize + gridOffsetY;
+                return viewPortTop + snappedOffset;
+            } else {
+                // For horizontal positions (X axis)
+                const offset = value - viewPortLeft;
+                const snappedOffset = Math.round((offset - gridOffsetX) / gridSize) * gridSize + gridOffsetX;
+                return viewPortLeft + snappedOffset;
+            }
+        };
 
         // Get current bounds
         const bounds = shape.getBoundingRect(true);
 
         // Snap all edges
-        const snappedLeft = snap(bounds.left);
-        const snappedTop = snap(bounds.top);
-        const snappedRight = snap(bounds.left + bounds.width);
-        const snappedBottom = snap(bounds.top + bounds.height);
+        const snappedLeft = snap(bounds.left, false);
+        const snappedTop = snap(bounds.top, true);
+        const snappedRight = snap(bounds.left + bounds.width, false);
+        const snappedBottom = snap(bounds.top + bounds.height, true);
 
         // Calculate new dimensions
         const snappedWidth = snappedRight - snappedLeft;
@@ -231,11 +264,15 @@ export abstract class ShapeTool extends Tool {
                 break;
             case 'ellipse':
                 const ellipse = shape as fabric.Ellipse;
+                // During creation, ellipses use left/top origin
+                // The rx and ry are radii, so we need half the dimensions
                 ellipse.set({
-                    left: snappedLeft + snappedWidth / 2,
-                    top: snappedTop + snappedHeight / 2,
+                    left: snappedLeft,
+                    top: snappedTop,
                     rx: snappedWidth / 2,
-                    ry: snappedHeight / 2
+                    ry: snappedHeight / 2,
+                    originX: 'left',
+                    originY: 'top'
                 });
                 break;
             case 'line':
