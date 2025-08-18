@@ -118,53 +118,6 @@ export class SelectTool extends Tool {
         return;
     }
 
-    // public onMouseDown = (o: fabric.IEvent): void => {
-    //     const target = o.target;
-    //     if (target && o.e) {
-    //         const pointer = this.canvas.getPointer(o.e);
-    //         this.mouseStartPos = { x: pointer.x, y: pointer.y };
-    //
-    //         const corner = target._findTargetCorner ? target._findTargetCorner(pointer) : false;
-    //
-    //         if (corner !== false) {
-    //             if (corner === true || corner === 'mtr') {
-    //                 this.draggedHandle = 'mtr';
-    //                 this.isRotating = true;
-    //                 this.rotationStartAngle = target.angle || 0;
-    //             } else if (typeof corner === 'string') {
-    //                 this.draggedHandle = corner;
-    //             }
-    //
-    //             this.isDragging = true;
-    //             this.originalTransform = {
-    //                 left: target.left || 0,
-    //                 top: target.top || 0,
-    //                 scaleX: target.scaleX || 1,
-    //                 scaleY: target.scaleY || 1,
-    //                 angle: target.angle || 0,
-    //                 width: target.width,
-    //                 height: target.height
-    //             };
-    //
-    //             // Store the initial bounds for scaling operations
-    //             const bounds = this.getAbsoluteBounds(target);
-    //             this.transformStartBounds = bounds;
-    //         } else {
-    //             if (this.canvas.getActiveObject() === target) {
-    //                 this.isDragging = true;
-    //                 this.draggedHandle = 'move';
-    //                 this.originalTransform = {
-    //                     left: target.left || 0,
-    //                     top: target.top || 0,
-    //                     scaleX: target.scaleX || 1,
-    //                     scaleY: target.scaleY || 1,
-    //                     angle: target.angle || 0
-    //                 };
-    //             }
-    //         }
-    //     }
-    // };
-
     public onMouseDown = (o: fabric.IEvent): void => {
         const target = o.target;
         if (target && o.e) {
@@ -177,27 +130,30 @@ export class SelectTool extends Tool {
 
             // These calls are necessary - they trigger internal Fabric.js updates
             const pointerWithoutTransform = this.canvas.getPointer(o.e, true);
-            const _oCoords = (target as any).oCoords; // Store to avoid lint error
-            const _internalPointer = (this.canvas as any)._pointer; // Store to avoid lint error
+            const _oCoords = (target as any).oCoords;
+            const _internalPointer = (this.canvas as any)._pointer;
 
             // Try corner detection with both pointers
             const corner = target._findTargetCorner ? target._findTargetCorner(pointer) : false;
             const cornerAlt = target._findTargetCorner ? target._findTargetCorner(pointerWithoutTransform) : false;
 
+            // CRITICAL FIX: Use cornerAlt when corner fails after viewport transform
+            const detectedCorner = corner !== false ? corner : cornerAlt;
+
             // Check shift+click for rotation reset
-            if (mouseEvent.shiftKey && (corner === 'mtr' || cornerAlt === 'mtr')) {
+            if (mouseEvent.shiftKey && (detectedCorner === 'mtr')) {
                 this.resetRotation(target);
                 return;
             }
 
-            // Continue with normal processing
-            if (corner !== false) {
-                if (corner === true || corner === 'mtr') {
+            // Continue with normal processing using the correctly detected corner
+            if (detectedCorner !== false) {
+                if (detectedCorner === true || detectedCorner === 'mtr') {
                     this.draggedHandle = 'mtr';
                     this.isRotating = true;
                     this.rotationStartAngle = target.angle || 0;
-                } else if (typeof corner === 'string') {
-                    this.draggedHandle = corner;
+                } else if (typeof detectedCorner === 'string') {
+                    this.draggedHandle = detectedCorner;
                 }
 
                 this.isDragging = true;
@@ -366,13 +322,43 @@ export class SelectTool extends Tool {
 
     private snapObjectToGrid(obj: fabric.Object): void {
         const { gridSize } = this.controller.model.getState();
-        const snap = (value: number) => Math.round(value / gridSize) * gridSize;
+
+        // Get viewport transform to understand where the grid actually is
+        const vpt = this.canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+        const zoom = vpt[0];
+        const panX = vpt[4];
+        const panY = vpt[5];
+
+        // Calculate where the visual grid starts (same as in drawGrid)
+        const viewPortLeft = -panX / zoom;
+        const viewPortTop = -panY / zoom;
+        const gridOffsetX = (Math.ceil(viewPortLeft / gridSize) * gridSize) - viewPortLeft;
+        const gridOffsetY = (Math.ceil(viewPortTop / gridSize) * gridSize) - viewPortTop;
+
+        // Snap function that accounts for grid offset
+        const snap = (value: number, isVertical: boolean = false) => {
+            if (isVertical) {
+                // For vertical positions (Y axis)
+                const offset = value - viewPortTop;
+                const snappedOffset = Math.round((offset - gridOffsetY) / gridSize) * gridSize + gridOffsetY;
+                return viewPortTop + snappedOffset;
+            } else {
+                // For horizontal positions (X axis)
+                const offset = value - viewPortLeft;
+                const snappedOffset = Math.round((offset - gridOffsetX) / gridSize) * gridSize + gridOffsetX;
+                return viewPortLeft + snappedOffset;
+            }
+        };
 
         if (this.draggedHandle === 'move') {
-            // For movement, snap the center point for rotated objects
+            // Movement code with updated snap function
+            const bounds = this.getAbsoluteBounds(obj);
             if (obj.angle && obj.angle !== 0) {
                 const center = obj.getCenterPoint();
-                const snappedCenter = new fabric.Point(snap(center.x), snap(center.y));
+                const snappedCenter = new fabric.Point(
+                    snap(center.x, false),
+                    snap(center.y, true)
+                );
                 const delta = snappedCenter.subtract(center);
 
                 obj.set({
@@ -380,10 +366,8 @@ export class SelectTool extends Tool {
                     top: (obj.top || 0) + delta.y
                 });
             } else {
-                // Non-rotated: snap top-left corner
-                const bounds = this.getAbsoluteBounds(obj);
-                const snappedLeft = snap(bounds.left);
-                const snappedTop = snap(bounds.top);
+                const snappedLeft = snap(bounds.left, false);
+                const snappedTop = snap(bounds.top, true);
                 const deltaX = snappedLeft - bounds.left;
                 const deltaY = snappedTop - bounds.top;
 
@@ -393,166 +377,100 @@ export class SelectTool extends Tool {
                 });
             }
         } else if (this.draggedHandle && typeof this.draggedHandle === 'string' && this.draggedHandle !== 'mtr') {
-            // For scaling rotated objects, we need a different approach
-            if (obj.angle && obj.angle !== 0) {
-                // Store the current center point
-                const centerBefore = obj.getCenterPoint();
+            const handle = this.draggedHandle;
 
-                // Get current bounds and calculate desired snapped bounds
-                const bounds = this.getAbsoluteBounds(obj);
-                let targetWidth = bounds.width;
-                let targetHeight = bounds.height;
+            // Use Fabric's getBoundingRect which accounts for viewport transform
+            const boundingRect = obj.getBoundingRect(true, true);
 
-                // Determine which edges to snap based on handle
-                const handle = this.draggedHandle;
-                if (handle.includes('l')) targetWidth = snap(bounds.width);
-                if (handle.includes('r')) targetWidth = snap(bounds.width);
-                if (handle.includes('t')) targetHeight = snap(bounds.height);
-                if (handle.includes('b')) targetHeight = snap(bounds.height);
+            // Store the fixed point before transformation
+            let fixedPoint: fabric.Point;
 
-                // Calculate scale change
-                const scaleX = targetWidth / bounds.width;
-                const scaleY = targetHeight / bounds.height;
-
-                // Apply scale
-                obj.set({
-                    scaleX: (obj.scaleX || 1) * scaleX,
-                    scaleY: (obj.scaleY || 1) * scaleY
-                });
-
-                // Maintain the appropriate anchor point based on handle
-                const centerAfter = obj.getCenterPoint();
-                let anchorPoint: fabric.Point;
-
-                // Determine anchor point (opposite corner stays fixed)
-                if (handle === 'tl') {
-                    const angle = fabric.util.degreesToRadians(obj.angle || 0);
-                    const hw = (obj.width! * obj.scaleX!) / 2;
-                    const hh = (obj.height! * obj.scaleY!) / 2;
-                    anchorPoint = new fabric.Point(
-                        centerBefore.x + hw * Math.cos(angle) + hh * Math.sin(angle),
-                        centerBefore.y + hw * Math.sin(angle) - hh * Math.cos(angle)
-                    );
-                } else if (handle === 'br') {
-                    const angle = fabric.util.degreesToRadians(obj.angle || 0);
-                    const hw = (obj.width! * obj.scaleX!) / 2;
-                    const hh = (obj.height! * obj.scaleY!) / 2;
-                    anchorPoint = new fabric.Point(
-                        centerBefore.x - hw * Math.cos(angle) - hh * Math.sin(angle),
-                        centerBefore.y - hw * Math.sin(angle) + hh * Math.cos(angle)
-                    );
-                } else {
-                    // For other handles, keep center point
-                    anchorPoint = centerBefore;
-                }
-
-                // Calculate position correction to maintain anchor
-                const anchorAfter = anchorPoint; // This should be recalculated based on new bounds
-                const correction = anchorPoint.subtract(centerAfter);
-
-                obj.set({
-                    left: (obj.left || 0) + correction.x,
-                    top: (obj.top || 0) + correction.y
-                });
-
+            if (handle === 'tl') {
+                fixedPoint = new fabric.Point(boundingRect.left + boundingRect.width, boundingRect.top + boundingRect.height);
+            } else if (handle === 'tr') {
+                fixedPoint = new fabric.Point(boundingRect.left, boundingRect.top + boundingRect.height);
+            } else if (handle === 'bl') {
+                fixedPoint = new fabric.Point(boundingRect.left + boundingRect.width, boundingRect.top);
+            } else if (handle === 'br') {
+                fixedPoint = new fabric.Point(boundingRect.left, boundingRect.top);
+            } else if (handle === 'ml') {
+                fixedPoint = new fabric.Point(boundingRect.left + boundingRect.width, boundingRect.top + boundingRect.height / 2);
+            } else if (handle === 'mr') {
+                fixedPoint = new fabric.Point(boundingRect.left, boundingRect.top + boundingRect.height / 2);
+            } else if (handle === 'mt') {
+                fixedPoint = new fabric.Point(boundingRect.left + boundingRect.width / 2, boundingRect.top + boundingRect.height);
+            } else if (handle === 'mb') {
+                fixedPoint = new fabric.Point(boundingRect.left + boundingRect.width / 2, boundingRect.top);
             } else {
-                // Your existing non-rotated scaling logic is good
-                // Keep the existing implementation for non-rotated objects
-                const bounds = this.getAbsoluteBounds(obj);
-                let fixedPoint: fabric.Point;
-                const handle = this.draggedHandle;
-
-                // Determine fixed point based on handle
-                if (handle === 'tl') {
-                    fixedPoint = new fabric.Point(bounds.left + bounds.width, bounds.top + bounds.height);
-                } else if (handle === 'tr') {
-                    fixedPoint = new fabric.Point(bounds.left, bounds.top + bounds.height);
-                } else if (handle === 'bl') {
-                    fixedPoint = new fabric.Point(bounds.left + bounds.width, bounds.top);
-                } else if (handle === 'br') {
-                    fixedPoint = new fabric.Point(bounds.left, bounds.top);
-                } else if (handle === 'ml') {
-                    fixedPoint = new fabric.Point(bounds.left + bounds.width, bounds.top + bounds.height / 2);
-                } else if (handle === 'mr') {
-                    fixedPoint = new fabric.Point(bounds.left, bounds.top + bounds.height / 2);
-                } else if (handle === 'mt') {
-                    fixedPoint = new fabric.Point(bounds.left + bounds.width / 2, bounds.top + bounds.height);
-                } else if (handle === 'mb') {
-                    fixedPoint = new fabric.Point(bounds.left + bounds.width / 2, bounds.top);
-                } else {
-                    fixedPoint = new fabric.Point(bounds.left, bounds.top);
-                }
-
-                // Snap edges being dragged
-                let targetLeft = bounds.left;
-                let targetTop = bounds.top;
-                let targetRight = bounds.left + bounds.width;
-                let targetBottom = bounds.top + bounds.height;
-
-                if (handle === 'tl') {
-                    targetLeft = snap(bounds.left);
-                    targetTop = snap(bounds.top);
-                } else if (handle === 'tr') {
-                    targetRight = snap(bounds.left + bounds.width);
-                    targetTop = snap(bounds.top);
-                } else if (handle === 'bl') {
-                    targetLeft = snap(bounds.left);
-                    targetBottom = snap(bounds.top + bounds.height);
-                } else if (handle === 'br') {
-                    targetRight = snap(bounds.left + bounds.width);
-                    targetBottom = snap(bounds.top + bounds.height);
-                } else if (handle === 'ml') {
-                    targetLeft = snap(bounds.left);
-                } else if (handle === 'mr') {
-                    targetRight = snap(bounds.left + bounds.width);
-                } else if (handle === 'mt') {
-                    targetTop = snap(bounds.top);
-                } else if (handle === 'mb') {
-                    targetBottom = snap(bounds.top + bounds.height);
-                }
-
-                const newWidth = Math.abs(targetRight - targetLeft);
-                const newHeight = Math.abs(targetBottom - targetTop);
-
-                const scaleX = newWidth / bounds.width;
-                const scaleY = newHeight / bounds.height;
-
-                obj.set({
-                    scaleX: (obj.scaleX || 1) * scaleX,
-                    scaleY: (obj.scaleY || 1) * scaleY
-                });
-
-                obj.setCoords();
-                const scaledBounds = this.getAbsoluteBounds(obj);
-
-                let newFixedPoint: fabric.Point;
-                if (handle === 'tl') {
-                    newFixedPoint = new fabric.Point(scaledBounds.left + scaledBounds.width, scaledBounds.top + scaledBounds.height);
-                } else if (handle === 'tr') {
-                    newFixedPoint = new fabric.Point(scaledBounds.left, scaledBounds.top + scaledBounds.height);
-                } else if (handle === 'bl') {
-                    newFixedPoint = new fabric.Point(scaledBounds.left + scaledBounds.width, scaledBounds.top);
-                } else if (handle === 'br') {
-                    newFixedPoint = new fabric.Point(scaledBounds.left, scaledBounds.top);
-                } else if (handle === 'ml') {
-                    newFixedPoint = new fabric.Point(scaledBounds.left + scaledBounds.width, scaledBounds.top + scaledBounds.height / 2);
-                } else if (handle === 'mr') {
-                    newFixedPoint = new fabric.Point(scaledBounds.left, scaledBounds.top + scaledBounds.height / 2);
-                } else if (handle === 'mt') {
-                    newFixedPoint = new fabric.Point(scaledBounds.left + scaledBounds.width / 2, scaledBounds.top + scaledBounds.height);
-                } else if (handle === 'mb') {
-                    newFixedPoint = new fabric.Point(scaledBounds.left + scaledBounds.width / 2, scaledBounds.top);
-                } else {
-                    newFixedPoint = new fabric.Point(scaledBounds.left, scaledBounds.top);
-                }
-
-                const drift = fixedPoint.subtract(newFixedPoint);
-
-                obj.set({
-                    left: (obj.left || 0) + drift.x,
-                    top: (obj.top || 0) + drift.y
-                });
+                fixedPoint = new fabric.Point(boundingRect.left, boundingRect.top);
             }
+
+            // Calculate target bounds with viewport-aware snapping
+            let targetLeft = boundingRect.left;
+            let targetTop = boundingRect.top;
+            let targetRight = boundingRect.left + boundingRect.width;
+            let targetBottom = boundingRect.top + boundingRect.height;
+
+            // Snap the edges being dragged using the viewport-aware snap function
+            if (handle.includes('l')) {
+                targetLeft = snap(boundingRect.left, false);
+            }
+            if (handle.includes('r')) {
+                targetRight = snap(boundingRect.left + boundingRect.width, false);
+            }
+            if (handle.includes('t')) {
+                targetTop = snap(boundingRect.top, true);
+            }
+            if (handle.includes('b')) {
+                targetBottom = snap(boundingRect.top + boundingRect.height, true);
+            }
+
+            // Calculate new dimensions
+            const newWidth = Math.abs(targetRight - targetLeft);
+            const newHeight = Math.abs(targetBottom - targetTop);
+
+            // Calculate scale factors
+            const scaleX = newWidth / boundingRect.width;
+            const scaleY = newHeight / boundingRect.height;
+
+            // Apply scaling
+            obj.set({
+                scaleX: (obj.scaleX || 1) * scaleX,
+                scaleY: (obj.scaleY || 1) * scaleY
+            });
+
+            // Update coordinates and get new bounding rect
+            obj.setCoords();
+            const newBoundingRect = obj.getBoundingRect(true, true);
+
+            // Calculate where the fixed point ended up
+            let newFixedPoint: fabric.Point;
+            if (handle === 'tl') {
+                newFixedPoint = new fabric.Point(newBoundingRect.left + newBoundingRect.width, newBoundingRect.top + newBoundingRect.height);
+            } else if (handle === 'tr') {
+                newFixedPoint = new fabric.Point(newBoundingRect.left, newBoundingRect.top + newBoundingRect.height);
+            } else if (handle === 'bl') {
+                newFixedPoint = new fabric.Point(newBoundingRect.left + newBoundingRect.width, newBoundingRect.top);
+            } else if (handle === 'br') {
+                newFixedPoint = new fabric.Point(newBoundingRect.left, newBoundingRect.top);
+            } else if (handle === 'ml') {
+                newFixedPoint = new fabric.Point(newBoundingRect.left + newBoundingRect.width, newBoundingRect.top + newBoundingRect.height / 2);
+            } else if (handle === 'mr') {
+                newFixedPoint = new fabric.Point(newBoundingRect.left, newBoundingRect.top + newBoundingRect.height / 2);
+            } else if (handle === 'mt') {
+                newFixedPoint = new fabric.Point(newBoundingRect.left + newBoundingRect.width / 2, newBoundingRect.top + newBoundingRect.height);
+            } else if (handle === 'mb') {
+                newFixedPoint = new fabric.Point(newBoundingRect.left + newBoundingRect.width / 2, newBoundingRect.top);
+            } else {
+                newFixedPoint = new fabric.Point(newBoundingRect.left, newBoundingRect.top);
+            }
+
+            // Correct drift
+            const drift = fixedPoint.subtract(newFixedPoint);
+            obj.set({
+                left: (obj.left || 0) + drift.x,
+                top: (obj.top || 0) + drift.y
+            });
         }
 
         obj.setCoords();

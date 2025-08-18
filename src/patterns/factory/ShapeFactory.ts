@@ -40,8 +40,6 @@ export class ShapeFactory {
             height: 0,
             centeredScaling: false,
             centeredRotation: true,
-            originX: 'left',
-            originY: 'top',
             strokeUniform: true
         });
         this._applyDefaults(rect, state);
@@ -56,8 +54,6 @@ export class ShapeFactory {
             ry: 0,
             centeredScaling: false,
             centeredRotation: true,
-            originX: 'left',
-            originY: 'top',
             strokeUniform: true
         });
         this._applyDefaults(ellipse, state);
@@ -72,8 +68,6 @@ export class ShapeFactory {
             height: 0,
             centeredScaling: false,
             centeredRotation: true,
-            originX: 'left',
-            originY: 'top',
             strokeUniform: true
         });
         this._applyDefaults(triangle, state);
@@ -84,8 +78,6 @@ export class ShapeFactory {
         const line = new fabric.Line([pointer.x, pointer.y, pointer.x, pointer.y], {
             centeredScaling: false,
             centeredRotation: true,
-            originX: 'left',
-            originY: 'top',
             strokeUniform: true
         });
 
@@ -102,8 +94,6 @@ export class ShapeFactory {
         const polygon = new fabric.Polygon(points, {
             centeredScaling: false,
             centeredRotation: true,
-            originX: 'left',
-            originY: 'top',
             strokeUniform: true
         });
         this._applyDefaults(polygon, state);
@@ -115,8 +105,6 @@ export class ShapeFactory {
             fill: '',
             centeredScaling: false,
             centeredRotation: true,
-            originX: 'left',
-            originY: 'top',
             strokeUniform: true
         });
         this._applyDefaults(polyline, state);

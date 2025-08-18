@@ -212,6 +212,18 @@ export class AppController {
         if (activeToolName === 'select') {
             this.fabricCanvas.selection = true;
         }
+
+        // CRITICAL: Force all objects to recalculate their coordinates after viewport change
+        this.fabricCanvas.getObjects().forEach(obj => {
+            if (!obj.isGridLine && !obj.isArtboard) {
+                // This forces Fabric to recalculate the object's bounding box and hit areas
+                obj.setCoords();
+            }
+        });
+
+        // Also clear and reset the cache
+        this.fabricCanvas.calcOffset();
+        this.fabricCanvas.requestRenderAll();
     }
 
     private handleContextMenu = (e: MouseEvent) => {
