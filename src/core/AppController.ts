@@ -66,11 +66,12 @@ export class AppController {
             statefullCache: true
         });
 
+        // REPLACE WITH:
         fabric.Object.prototype.toObject = (function (toObject) {
             return function (this: fabric.Object, propertiesToInclude) {
                 propertiesToInclude = (propertiesToInclude || []).concat([
                     'layerId', 'id', 'isFillEnabled', 'solidFill', 'isGradientFillEnabled', 'gradientFill',
-                    'isStrokeEnabled', 'solidStroke', 'isPenObject', 'anchorData'
+                    'isStrokeEnabled', 'solidStroke', 'isPenObject', 'anchorData', 'isPathClosed'  // ADD isPathClosed
                 ]);
                 return toObject.call(this, propertiesToInclude);
             };
