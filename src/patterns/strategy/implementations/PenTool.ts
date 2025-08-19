@@ -22,7 +22,8 @@ export class PenTool extends Tool {
     private hasMouseMoved: boolean = false; // Track if mouse has moved since mousedown
     private mouseDownPoint: fabric.Point | null = null; // Store initial mouse down position
     private livePreviewPath: fabric.Path | null = null;
-
+    private newlyAddedVertexIndex: number | null = null;
+    private recentlyAddedVertexTime: number = 0;
 
     constructor(controller: AppController) {
         super(controller);
@@ -134,11 +135,9 @@ export class PenTool extends Tool {
                 return;
             }
 
-            // Check if clicking on the path to add a vertex
-            if (this.editingObject.containsPoint(fabricPoint)) {
-                // Snap the new point to grid intersection
-                const snappedPointer = this.controller.snapPointToGrid(fabricPoint);
-                this.addAnchorPoint(snappedPointer);
+            const closestSegment = this.findClosestPathSegment(fabricPoint);
+            if (closestSegment && closestSegment.distance < 30 / this.canvas.getZoom()) {
+                this.addAnchorPoint(fabricPoint); // addAnchorPoint will handle snapping
                 return;
             }
         }
@@ -242,7 +241,9 @@ export class PenTool extends Tool {
         this.draggedHandle = null;
         this.hasMouseMoved = false;
         this.mouseDownPoint = null;
+        this.newlyAddedVertexIndex = null;
     }
+
     private findClickedEditElement(pointer: fabric.Point): { pointIndex: number; handle: 'anchor' | 'handle1' | 'handle2' } | null {
         if (!this.editingAnchorData) return null;
 
@@ -547,7 +548,6 @@ export class PenTool extends Tool {
         this.renderEditHandles();
     }
 
-    // Add anchor point with smooth handles and grid snapping
     private addAnchorPoint(clickPoint: fabric.Point): void {
         if (!this.editingObject || !this.editingAnchorData) return;
 
@@ -555,7 +555,7 @@ export class PenTool extends Tool {
             index: -1,
             distance: Infinity,
             point: clickPoint,
-            t: 0 // Parameter along the curve
+            t: 0
         };
 
         // Find the best segment to add the point to
@@ -576,7 +576,11 @@ export class PenTool extends Tool {
             }
         }
 
-        if (bestMatch.distance < 20) {
+        // CHANGE: Increase threshold and use zoom-adjusted distance
+        const zoom = this.canvas.getZoom();
+        const threshold = 30 / zoom; // Adjust threshold based on zoom
+
+        if (bestMatch.distance < threshold) {
             // Snap the new anchor point to grid intersection
             const snappedPoint = this.controller.snapPointToGrid(bestMatch.point);
 
@@ -598,24 +602,29 @@ export class PenTool extends Tool {
                 // Get tangent at this point
                 const tangent = this.getBezierTangent(p1, p2, bestMatch.t);
 
-                // Calculate handle length as average of neighbors
-                const handle1Length = Math.max(
-                    this.MIN_HANDLE_LENGTH,
-                    (p1.anchor.distanceFrom(p1.handle2) + p2.anchor.distanceFrom(p2.handle1)) / 2
-                );
+                // CHANGE: Use more reasonable handle length
+                const segmentLength = p1.anchor.distanceFrom(p2.anchor);
+                const handleLength = Math.max(this.MIN_HANDLE_LENGTH, Math.min(segmentLength * 0.25, 50));
 
                 newAnchor = {
                     anchor: snappedPoint,
                     handle1: new fabric.Point(
-                        snappedPoint.x - tangent.x * handle1Length,
-                        snappedPoint.y - tangent.y * handle1Length
+                        snappedPoint.x - tangent.x * handleLength,
+                        snappedPoint.y - tangent.y * handleLength
                     ),
                     handle2: new fabric.Point(
-                        snappedPoint.x + tangent.x * handle1Length,
-                        snappedPoint.y + tangent.y * handle1Length
+                        snappedPoint.x + tangent.x * handleLength,
+                        snappedPoint.y + tangent.y * handleLength
                     )
                 };
             }
+            // FIND THIS (at the end of addAnchorPoint):
+            this.controller.executeCommand(UpdatePenPathCommand, this.editingObject, this.editingAnchorData).then(() => {
+                if (this.editingObject) {
+                    this.editingAnchorData = this.convertPathRelativeToAbsolute();
+                    this.renderEditHandles();
+                }
+            });
 
             this.editingAnchorData.splice(bestMatch.index, 0, newAnchor);
             this.controller.executeCommand(UpdatePenPathCommand, this.editingObject, this.editingAnchorData).then(() => {
@@ -625,6 +634,27 @@ export class PenTool extends Tool {
                 }
             });
         }
+    }
+
+    private findClosestPathSegment(point: fabric.Point): { distance: number, t: number, segmentIndex: number } | null {
+        if (!this.editingAnchorData) return null;
+
+        let best = { distance: Infinity, t: 0, segmentIndex: -1 };
+
+        const numSegments = this.editingObject?.isPathClosed ?
+            this.editingAnchorData.length : this.editingAnchorData.length - 1;
+
+        for (let i = 0; i < numSegments; i++) {
+            const p1 = this.editingAnchorData[i];
+            const p2 = this.editingAnchorData[(i + 1) % this.editingAnchorData.length];
+            const result = this.findClosestPointOnBezier(point, p1, p2);
+
+            if (result.distance < best.distance) {
+                best = { distance: result.distance, t: result.t, segmentIndex: i };
+            }
+        }
+
+        return best.segmentIndex >= 0 ? best : null;
     }
 
     // Find closest point on a bezier curve segment
@@ -817,6 +847,14 @@ export class PenTool extends Tool {
         this.currentPathData = [];
         this.cleanupLivePreview();
 
+        // FIX: Apply any pending transformations before converting coordinates
+        if (penObject.scaleX !== 1 || penObject.scaleY !== 1 ||
+            penObject.skewX !== 0 || penObject.skewY !== 0) {
+            // Object has unapplied transformations from group resize
+            // Apply them now before entering edit mode
+            this.applyPendingTransformations(penObject);
+        }
+        
         // Convert coordinates and setup edit context
         this.editingAnchorData = this.convertPathRelativeToAbsolute();
 
@@ -827,6 +865,59 @@ export class PenTool extends Tool {
         }, 5);
     }
 
+    private applyPendingTransformations(penObject: fabric.Path): void {
+        const scaleX = penObject.scaleX || 1;
+        const scaleY = penObject.scaleY || 1;
+        const skewX = penObject.skewX || 0;
+        const skewY = penObject.skewY || 0;
+
+        if (scaleX === 1 && scaleY === 1 && skewX === 0 && skewY === 0) {
+            return;
+        }
+
+        if (!penObject.anchorData) return;
+
+        const anchorData = hydrateAnchorData(penObject.anchorData);
+        const pathOffset = penObject.pathOffset;
+
+        // Create transformation matrix
+        const matrix = [scaleX, skewX, skewY, scaleY, 0, 0];
+
+        // Transform all points
+        const transformedData: IAnchorPoint[] = anchorData.map(point => ({
+            anchor: fabric.util.transformPoint(point.anchor.add(pathOffset), matrix),
+            handle1: fabric.util.transformPoint(point.handle1.add(pathOffset), matrix),
+            handle2: fabric.util.transformPoint(point.handle2.add(pathOffset), matrix)
+        }));
+
+        // Generate new path
+        const pathString = this.generatePathString(transformedData, penObject.isPathClosed || false);
+        const newPath = new fabric.Path(pathString);
+
+        // Update with new path data
+        const newPathOffset = newPath.pathOffset;
+        const finalAnchorData: IAnchorPoint[] = transformedData.map(point => ({
+            anchor: point.anchor.subtract(newPathOffset),
+            handle1: point.handle1.subtract(newPathOffset),
+            handle2: point.handle2.subtract(newPathOffset)
+        }));
+
+        // Apply the transformation
+        penObject.set({
+            path: newPath.path,
+            pathOffset: newPathOffset,
+            width: newPath.width,
+            height: newPath.height,
+            scaleX: 1,
+            scaleY: 1,
+            skewX: 0,
+            skewY: 0,
+            anchorData: finalAnchorData,
+            dirty: true
+        });
+
+        penObject.setCoords();
+    }
 
     // Exit edit mode
     // Modify exitEditMode to clean up preview
@@ -972,6 +1063,12 @@ export class PenTool extends Tool {
     // Delete anchor point
     private deleteAnchorPoint(indexToDelete: number): void {
         if (!this.editingObject || !this.editingAnchorData || this.editingAnchorData.length <= 2) return;
+
+        // Don't delete if we just added a vertex (within last 500ms)
+        if (Date.now() - this.recentlyAddedVertexTime < 500) {
+            console.log('Ignoring delete - vertex was just added');
+            return;
+        }
 
         this.editingAnchorData.splice(indexToDelete, 1);
         this.controller.executeCommand(UpdatePenPathCommand, this.editingObject, this.editingAnchorData).then(() => {
